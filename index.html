@@ -195,6 +195,10 @@
     .wrap{max-width:1600px;}
     .view.active{column-count:3;}
   }
+  .fonte-chip{display:inline-flex; align-items:center; gap:6px; background:var(--panel2); border:1px solid var(--line);
+      border-radius:20px; padding:5px 6px 5px 12px; font-size:12px; margin:0 6px 6px 0;}
+  .fonte-chip small{color:var(--dim);}
+  .fonte-chip button{background:transparent; border:none; color:var(--bad); cursor:pointer; font-size:13px; padding:0 4px;}
 </style>
 </head>
 <body>
@@ -265,8 +269,18 @@
 
     <section>
       <h2>Questões por disciplina</h2>
-      <p class="lead">Toque em uma disciplina para ver o detalhe por assunto.</p>
+      <p class="lead">Toque em uma disciplina para ver o detalhe por assunto. Filtre pela fonte de onde vieram as questões.</p>
+      <select id="discFonteFilter"></select>
       <div id="discList"></div>
+      <details style="margin-top:14px;">
+        <summary>Gerenciar fontes</summary>
+        <p class="q-meta" style="margin:8px 0;">As mesmas fontes aparecem no registro de questões (aba Resumo do Dia).</p>
+        <div id="fontesList" style="margin-top:8px;"></div>
+        <div class="add-row">
+          <input id="cNovaFonte" placeholder="Nova fonte">
+          <button class="btn" id="cNovaFonteBtn" type="button">Adicionar</button>
+        </div>
+      </details>
     </section>
 
     <section>
@@ -402,16 +416,15 @@
       <div class="q-form">
         <div class="full"><label>Assunto</label><input id="qAssunto" placeholder="Ex: Controle de Constitucionalidade"></div>
         <div><label>Disciplina</label><select id="qDisciplina"></select></div>
-        <div><label>Fonte</label>
-          <select id="qFonte">
-            <option>Notebook LM</option>
-            <option>Gemini</option>
-            <option>YouTube</option>
-            <option>QConcursos</option>
-          </select>
-        </div>
+        <div><label>Fonte</label><select id="qFonte"></select></div>
         <div><label>Questões</label><input id="qQuestoes" type="number" min="0" value="10"></div>
         <div><label>Acertos</label><input id="qAcertos" type="number" min="0" value="0"></div>
+        <div class="full"><label>Nova fonte (opcional)</label>
+          <div style="display:flex; gap:8px;">
+            <input id="qNovaFonte" placeholder="Ex: Estratégia, Instagram, Livro..." style="flex:1;">
+            <button class="btn ghost small" id="qNovaFonteBtn" type="button">Adicionar fonte</button>
+          </div>
+        </div>
         <div class="full"><button class="btn" id="addQuestaoBtn" style="width:100%;">Adicionar</button></div>
       </div>
       <table class="qtable">
@@ -597,6 +610,7 @@
 <script>
 const KEY = 'estudo_app_state_v1';
 const todayStr = () => new Date().toISOString().slice(0,10);
+const DEFAULT_FONTES = ['Notebook LM','Gemini','YouTube','QConcursos'];
 const WEEKDAYS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 const APP_URL = 'https://claude.ai/artifact/X3rhJ6Wxqek7JmH2SFYA6R';
 
@@ -656,6 +670,8 @@ function loadState(rawObj){
   if (!s.exam) s.exam = {status:'pre', date:null};
   if (s.activeConcursoId === undefined) s.activeConcursoId = null;
   if (!s.revisoes) s.revisoes = [];
+  if (!Array.isArray(s.fontes) || s.fontes.length === 0) s.fontes = [...DEFAULT_FONTES];
+  s.questoes.forEach(q => { if (q.fonte && !s.fontes.includes(q.fonte)) s.fontes.push(q.fonte); });
   if (!s.manualLog) s.manualLog = [];
   if (!s.cronograma) s.cronograma = {};
   if (s.lastBackup === undefined) s.lastBackup = null;
@@ -1079,6 +1095,70 @@ function renderDisciplinaRanking(){
     </div>
   `).join('');
 }
+// ---------- FONTES DE QUESTÕES (compartilhadas entre Resumo do Dia e Ciclo) ----------
+let discFonteFilter = '';
+function escHtml(t){ return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function allFontes(){
+  const list = [...state.fontes];
+  state.questoes.forEach(q => { if (q.fonte && !list.includes(q.fonte)) list.push(q.fonte); });
+  return list;
+}
+function fillSelectOptions(sel, values, firstLabel){
+  sel.innerHTML = '';
+  if (firstLabel){ const o = document.createElement('option'); o.value = ''; o.textContent = firstLabel; sel.appendChild(o); }
+  values.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+}
+function fillFonteSelects(){
+  const qf = document.getElementById('qFonte');
+  const curQ = qf.value;
+  fillSelectOptions(qf, state.fontes);
+  if (state.fontes.includes(curQ)) qf.value = curQ;
+  const df = document.getElementById('discFonteFilter');
+  fillSelectOptions(df, allFontes(), 'Todas as fontes');
+  if (!allFontes().includes(discFonteFilter)) discFonteFilter = '';
+  df.value = discFonteFilter;
+}
+function renderFontesList(){
+  const el = document.getElementById('fontesList');
+  el.innerHTML = state.fontes.map(f => {
+    const n = state.questoes.filter(q => q.fonte === f).length;
+    return `<span class="fonte-chip">${escHtml(f)} <small>${n}</small><button data-f="${escHtml(f)}" title="Remover fonte">✕</button></span>`;
+  }).join('');
+  el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => removeFonte(b.dataset.f)));
+}
+function addFonte(raw){
+  const name = raw.trim();
+  if (!name){ toast('Digite o nome da fonte.', 'err'); return null; }
+  const dup = state.fontes.find(f => f.toLowerCase() === name.toLowerCase());
+  if (dup){ toast(`A fonte "${dup}" já existe.`, 'err'); return dup; }
+  state.fontes.push(name);
+  saveState(); fillFonteSelects(); renderFontesList();
+  toast(`Fonte "${name}" adicionada.`);
+  return name;
+}
+function removeFonte(name){
+  if (state.fontes.length <= 1){ toast('Mantenha ao menos uma fonte.', 'err'); return; }
+  state.fontes = state.fontes.filter(f => f !== name);
+  saveState(); fillFonteSelects(); renderFontesList(); renderDiscList();
+  toast(`Fonte "${name}" removida da lista. As questões já registradas continuam salvas.`);
+}
+document.getElementById('discFonteFilter').addEventListener('change', e => {
+  discFonteFilter = e.target.value;
+  renderDiscList();
+});
+document.getElementById('qNovaFonteBtn').addEventListener('click', () => {
+  const inp = document.getElementById('qNovaFonte');
+  const name = addFonte(inp.value);
+  if (name){ inp.value = ''; document.getElementById('qFonte').value = name; }
+});
+document.getElementById('cNovaFonteBtn').addEventListener('click', () => {
+  const inp = document.getElementById('cNovaFonte');
+  if (addFonte(inp.value)) inp.value = '';
+});
+['qNovaFonte','cNovaFonte'].forEach(id => document.getElementById(id).addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ e.preventDefault(); document.getElementById(id === 'qNovaFonte' ? 'qNovaFonteBtn' : 'cNovaFonteBtn').click(); }
+}));
+
 function renderDiscList(){
   const el = document.getElementById('discList');
   el.innerHTML = '';
@@ -1087,7 +1167,7 @@ function renderDiscList(){
     return;
   }
   state.subjects.forEach(s => {
-    const qs = state.questoes.filter(q => q.disciplina === s.label);
+    const qs = state.questoes.filter(q => q.disciplina === s.label && (!discFonteFilter || q.fonte === discFonteFilter));
     const total = qs.reduce((a,q)=>a+q.questoes,0);
     const acertos = qs.reduce((a,q)=>a+q.acertos,0);
     const erros = total - acertos;
@@ -1103,11 +1183,11 @@ function renderDiscList(){
 }
 
 function openDiscModal(disciplina){
-  document.getElementById('modalTitle').textContent = disciplina;
+  document.getElementById('modalTitle').textContent = disciplina + (discFonteFilter ? ' · ' + discFonteFilter : '');
   const body = document.getElementById('modalBody');
-  const qs = state.questoes.filter(q => q.disciplina === disciplina);
+  const qs = state.questoes.filter(q => q.disciplina === disciplina && (!discFonteFilter || q.fonte === discFonteFilter));
   if (qs.length === 0){
-    body.innerHTML = '<p class="lead" style="margin:0;">Nenhuma questão registrada nesta disciplina ainda.</p>';
+    body.innerHTML = '<p class="lead" style="margin:0;">Nenhuma questão registrada nesta disciplina' + (discFonteFilter ? ' para a fonte selecionada' : ' ainda') + '.</p>';
   } else {
     const groups = {};
     qs.forEach(q => {
@@ -1339,13 +1419,13 @@ document.getElementById('addQuestaoBtn').addEventListener('click', () => {
   if (!assunto) return;
   state.questoes.push({assunto, disciplina, fonte, questoes, acertos, date: todayStr()});
   document.getElementById('qAssunto').value = '';
-  saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart();
+  saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart(); fillFonteSelects(); renderFontesList();
 });
 
 document.getElementById('clearQuestoesBtn').addEventListener('click', () => {
   askConfirm('Apagar TODAS as questões registradas (de todos os dias)? Isso limpa também os gráficos e o desempenho por disciplina.', () => {
     state.questoes = [];
-    saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart();
+    saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart(); fillFonteSelects(); renderFontesList();
     toast('Questões apagadas.');
   });
 });
@@ -1367,7 +1447,7 @@ function renderQuestoesDoDia(){
   body.querySelectorAll('.del-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       state.questoes.splice(parseInt(e.target.dataset.idx),1);
-      saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart();
+      saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart(); fillFonteSelects(); renderFontesList();
     });
   });
 }
@@ -1570,6 +1650,7 @@ document.getElementById('copyBackupBtn').addEventListener('click', async () => {
 function refreshAll(){
   drawDonut(); renderRows(); updateMetaGeralField(); fillSubjectSelect(); updateStats();
   fillDisciplinaSelect(); renderPie(); renderBarChart(); renderQuestoesDoDia();
+  fillFonteSelects(); renderFontesList();
   renderDiscList(); renderRedacoes(); renderHistoryCharts(); renderSimulados();
   document.getElementById('editalStatus').value = state.exam.status;
   document.getElementById('editalData').value = state.exam.date || '';
@@ -2480,6 +2561,7 @@ renderDisciplinaRanking();
 renderRevisoes();
 renderPlanoHoje(); renderCronograma(); fillManSubject(); renderManualLog();
 renderBackupInfo(); renderBackupBanner(); renderInstallInfo();
+fillFonteSelects(); renderFontesList();
 </script>
 <script>
 if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
