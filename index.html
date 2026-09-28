@@ -30,8 +30,9 @@
   h1,h2{font-family:'Sora',sans-serif; margin:0;}
   .wrap{max-width:520px; margin:0 auto;}
   .tabs{display:flex; gap:6px; margin-bottom:16px; position:sticky; top:env(safe-area-inset-top,0px); z-index:5;
-        background:var(--bg); padding:6px 0;}
-  .tab{flex:1; text-align:center; padding:11px 4px; border-radius:12px; border:1px solid var(--line);
+        background:var(--bg); padding:6px 0; overflow-x:auto; scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{flex:1 0 auto; white-space:nowrap; text-align:center; padding:11px 12px; border-radius:12px; border:1px solid var(--line);
        background:var(--panel); color:var(--dim); font-weight:700; font-size:12.5px; cursor:pointer;}
   .tab.active{background:var(--gold); color:#1A1300; border-color:var(--gold);}
   .view{display:none;} .view.active{display:block;}
@@ -166,24 +167,80 @@
   .ta{width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:9px; color:var(--text);
       padding:9px 10px; font-size:12px; font-family:monospace;}
   details summary{cursor:pointer; font-size:12.5px; color:var(--dim);}
-  .cron-day{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px;}
-  .cron-day.today{border-color:var(--gold);}
-  .cron-name{font-size:12px; font-weight:800; margin-bottom:8px; color:var(--gold-soft);}
-  .cron-chips{display:flex; flex-wrap:wrap; gap:6px;}
-  .cchip{font-size:11.5px; padding:5px 10px; border-radius:20px; border:1px solid var(--line); color:var(--dim); cursor:pointer; user-select:none;}
+
+  :root{ --st-green:#2EC27E; --st-yellow:#F2B705; --st-red:#EF5B4D; --st-none:#26364D; }
+  .st-green{background:var(--st-green); color:#052515;}
+  .st-yellow{background:var(--st-yellow); color:#2a1d00;}
+  .st-red{background:var(--st-red); color:#fff;}
+  .st-none{background:var(--st-none); color:var(--dim);}
+  .st-future{background:rgba(255,255,255,.04); color:var(--dim); opacity:.5;}
+  .cons-tabs{display:flex; gap:6px; margin:14px 0;}
+  .ctab{flex:1; text-align:center; padding:9px 4px; border-radius:10px; border:1px solid var(--line); background:var(--panel2);
+      color:var(--dim); font-weight:700; font-size:13px; cursor:pointer;}
+  .ctab.active{background:var(--gold); color:#1A1300; border-color:var(--gold);}
+  .cons-nav{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+  .cons-title{flex:1; text-align:center; font-family:'Sora',sans-serif; font-weight:700; font-size:15px;}
+  .navbtn{width:34px; height:34px; border-radius:10px; border:1px solid var(--line); background:var(--panel2);
+      color:var(--text); font-size:18px; cursor:pointer; line-height:1;}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+  .cal-head{font-size:11px; color:var(--dim); text-align:center; padding-bottom:2px; font-weight:700;}
+  .cal-cell{aspect-ratio:1/1.05; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      font-size:13px; font-weight:800; cursor:pointer; line-height:1.15; user-select:none;}
+  .cal-cell small{font-size:10px; font-weight:700; min-height:11px;}
+  .cal-cell.today{outline:2px solid #fff; outline-offset:-2px;}
+  .cal-cell.sel, .hc.sel{box-shadow:0 0 0 2px var(--gold-soft);}
+  .cons-sum{display:flex; align-items:center; justify-content:space-around; gap:10px; background:var(--panel2);
+      border:1px solid var(--line); border-radius:14px; padding:14px 10px; margin-top:14px;}
+  .cons-sum .cs-item{text-align:center;}
+  .cons-sum .cs-n{font-family:'Sora',sans-serif; font-weight:800; font-size:17px;}
+  .cons-sum .cs-c{font-size:11px; color:var(--dim);}
+  .ring{width:76px; height:76px; border-radius:50%; position:relative; display:flex; align-items:center; justify-content:center;
+      background:conic-gradient(var(--st-green) calc(var(--p) * 1%), rgba(255,255,255,.1) 0);}
+  .ring::before{content:''; position:absolute; inset:8px; background:var(--panel2); border-radius:50%;}
+  .ring span{position:relative; font-family:'Sora',sans-serif; font-weight:800; font-size:15px; text-align:center; line-height:1.1;}
+  .ring small{display:block; font-size:9px; color:var(--dim); font-weight:700;}
+  .day-detail{background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:14px; margin-top:14px;}
+  .dd-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .dd-badge{font-size:11px; font-weight:800; padding:3px 10px; border-radius:20px;}
+  .dd-row{margin-top:10px; font-size:12.5px;}
+  .dd-row .dd-top{display:flex; justify-content:space-between; color:var(--dim); margin-bottom:5px;}
+  .dd-row .dd-top b{color:var(--text);}
+  .wk{display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:16px;}
+  .wk-col{display:flex; flex-direction:column; align-items:center; gap:4px;}
+  .wk-track{position:relative; width:100%; height:110px; display:flex; align-items:flex-end; justify-content:center;
+      background:rgba(255,255,255,.03); border-radius:8px;}
+  .wk-bar{width:62%; border-radius:6px 6px 2px 2px;}
+  .wk-goal{position:absolute; left:0; right:0; border-top:2px dashed rgba(255,255,255,.4);}
+  .wk-val{font-size:10.5px; font-weight:700;}
+  .wk-day{font-size:11px; color:var(--dim); text-align:center; line-height:1.15;}
+  .wk-day small{font-size:9.5px;}
+  .heat-scroll{overflow-x:auto; padding-bottom:8px;}
+  .heat-wrap{display:inline-block; --cs:12px; --gap:3px;}
+  .heat-months{display:grid; grid-auto-flow:column; grid-auto-columns:var(--cs); gap:var(--gap); font-size:10px; color:var(--dim);
+      height:14px; margin-bottom:4px;}
+  .heat-months span{white-space:nowrap;}
+  .heat-grid{display:grid; grid-template-rows:repeat(7,var(--cs)); grid-auto-flow:column; grid-auto-columns:var(--cs); gap:var(--gap);}
+  .hc{width:var(--cs); height:var(--cs); border-radius:3px; cursor:pointer;}
+  .hc.st-future{opacity:.3;}
+  .dist-bar{display:flex; height:16px; border-radius:8px; overflow:hidden; background:rgba(255,255,255,.06); margin:6px 0 4px;}
+  .cons-stat2{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px;}
+  .cons-stat2 .stat{padding:12px 8px;}
+  .cons-note{font-size:11.5px; color:var(--dim); line-height:1.5;}
 
   /* ===== Layout para telas maiores (tablet / notebook) ===== */
   @media (min-width: 760px){
     body{padding:24px 24px 56px;}
     .wrap{max-width:720px;}
-    .tab{font-size:14px; padding:13px 6px;}
+    .tab{font-size:14px; padding:13px 16px;}
     .modal-overlay{align-items:center; padding:24px;}
     .modal-card, #confirmModal .modal-card{border-radius:18px !important; max-width:580px; max-height:86vh;
         padding-bottom:20px;}
   }
   @media (min-width: 1040px){
     .wrap{max-width:1180px;}
-    .tabs{max-width:760px; margin-left:auto; margin-right:auto;}
+    .tabs{max-width:900px; margin-left:auto; margin-right:auto;}
+    #view-historico.active{column-count:1; max-width:760px; margin-left:auto; margin-right:auto;}
+    .cal-cell{aspect-ratio:1/.78;}
     .view.active{column-count:2; column-gap:20px;}
     .view section{break-inside:avoid; -webkit-column-break-inside:avoid; page-break-inside:avoid;}
     .tab:hover{border-color:var(--gold); color:var(--text);}
@@ -207,18 +264,13 @@
     <div class="tab active" data-view="ciclo">Ciclo</div>
     <div class="tab" data-view="pomo">Pomodoro</div>
     <div class="tab" data-view="resumo">Resumo do Dia</div>
+    <div class="tab" data-view="historico">Histórico</div>
     <div class="tab" data-view="simulados">Simulados</div>
     <div class="tab" data-view="concursos">Concursos</div>
   </div>
   <div id="backupBanner" class="backup-banner" style="display:none;"></div>
 
   <div class="view active" id="view-ciclo">
-    <section>
-      <h2>Plano de hoje</h2>
-      <p class="lead" id="planoHojeSub"></p>
-      <div id="planoHoje"></div>
-    </section>
-
     <section>
       <h2>Concurso ativo</h2>
       <p class="lead">Escolha qual concurso você está priorizando — isso ajusta o Ranking e a Contagem Regressiva automaticamente.</p>
@@ -259,12 +311,6 @@
         </div>
         <button class="btn ghost small" id="resetDay" style="align-self:flex-end;">Zerar progresso de hoje</button>
       </div>
-    </section>
-
-    <section>
-      <h2>Cronograma semanal</h2>
-      <p class="lead">Marque as matérias de cada dia da semana. O plano do dia aparece no topo desta aba.</p>
-      <div id="cronograma"></div>
     </section>
 
     <section>
@@ -465,6 +511,34 @@
     </section>
   </div>
 
+  <div class="view" id="view-historico">
+    <section id="consSection">
+      <h2>Metas e consistência</h2>
+      <p class="lead">Defina suas metas por dia e acompanhe a constância no calendário.</p>
+      <div class="q-form" style="margin-bottom:6px;">
+        <div><label>Meta de horas por dia</label><input id="metaHorasDia" type="number" min="0.25" step="0.25"></div>
+        <div><label>Meta de questões por dia (opcional)</label><input id="metaQuestoesDia" type="number" min="0" placeholder="Sem meta"></div>
+      </div>
+      <p class="cons-note" id="metaNote"></p>
+      <div class="cons-tabs" id="consTabs">
+        <div class="ctab active" data-v="dia">Dia</div>
+        <div class="ctab" data-v="semana">Semana</div>
+        <div class="ctab" data-v="mes">Mês</div>
+        <div class="ctab" data-v="ano">Ano</div>
+      </div>
+      <div id="consBody"></div>
+      <details style="margin-top:14px;">
+        <summary>Como as cores funcionam</summary>
+        <p class="cons-note" style="margin:8px 0 0;">
+          <b style="color:var(--st-green)">Verde</b>: bateu todas as metas do dia (horas e, se definida, questões).<br>
+          <b style="color:var(--st-yellow)">Amarelo (parcial)</b>: bateu só uma das metas, ou chegou a pelo menos metade delas.<br>
+          <b style="color:var(--st-red)">Vermelho</b>: estudou, mas ficou abaixo de metade das metas.<br>
+          <b>Cinza</b>: nenhum registro no dia. As questões contam acertos e erros, incluindo as de simulados.
+        </p>
+      </details>
+    </section>
+  </div>
+
   <div class="view" id="view-simulados">
     <section>
       <h2 id="simFormTitle">Registrar simulado</h2>
@@ -609,9 +683,11 @@
 
 <script>
 const KEY = 'estudo_app_state_v1';
-const todayStr = () => new Date().toISOString().slice(0,10);
+const todayStr = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+};
 const DEFAULT_FONTES = ['Notebook LM','Gemini','YouTube','QConcursos'];
-const WEEKDAYS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 const APP_URL = 'https://claude.ai/artifact/X3rhJ6Wxqek7JmH2SFYA6R';
 
 // alert()/confirm() são bloqueados dentro do artefato: usamos avisos e confirmação próprios
@@ -670,10 +746,11 @@ function loadState(rawObj){
   if (!s.exam) s.exam = {status:'pre', date:null};
   if (s.activeConcursoId === undefined) s.activeConcursoId = null;
   if (!s.revisoes) s.revisoes = [];
+  if (!Array.isArray(s.goalHistory) || s.goalHistory.length === 0) s.goalHistory = [{from:'0000-00-00', h:1, q:10}];
+  if (s.goalSet === undefined) s.goalSet = false;
   if (!Array.isArray(s.fontes) || s.fontes.length === 0) s.fontes = [...DEFAULT_FONTES];
   s.questoes.forEach(q => { if (q.fonte && !s.fontes.includes(q.fonte)) s.fontes.push(q.fonte); });
   if (!s.manualLog) s.manualLog = [];
-  if (!s.cronograma) s.cronograma = {};
   if (s.lastBackup === undefined) s.lastBackup = null;
   if (s.backupSnooze === undefined) s.backupSnooze = null;
   if (!s.concursosSeeded && s.concursos.length === 0){
@@ -737,7 +814,9 @@ document.querySelectorAll('.tab').forEach(t => {
     document.getElementById('view-'+t.dataset.view).classList.add('active');
     renderBackupBanner();
     if (t.dataset.view === 'pomo'){ fillSubjectSelect(); renderManualLog(); }
-    if (t.dataset.view === 'ciclo'){ renderRevisoes(); renderPlanoHoje(); renderBackupInfo(); }
+    if (t.dataset.view === 'ciclo'){ renderRevisoes(); renderBackupInfo(); }
+    if (t.dataset.view === 'historico'){ renderConsistencia(); }
+    if (t.scrollIntoView) t.scrollIntoView({inline:'center', block:'nearest', behavior:'smooth'});
     if (t.dataset.view === 'resumo') { renderPie(); renderBarChart(); renderQuestoesDoDia(); fillDisciplinaSelect(); renderHistoryCharts(); }
     if (t.dataset.view === 'simulados') {
       fillSimConcursoOptions();
@@ -816,7 +895,6 @@ function renderRows(){
 }
 
 function updateRowVisual(s){
-  renderPlanoHoje();
   const row = document.getElementById('row-'+s.id);
   if (!row) return;
   const pct = s.goal>0 ? Math.min(100, Math.round(s.studied/s.goal*100)) : 0;
@@ -884,12 +962,12 @@ document.getElementById('resetDay').addEventListener('click', () => {
   state.subjects.forEach(s=>s.studied=0);
   state.pomosToday=0; state.minutesToday=0;
   updateHistoryToday();
-  saveState(); drawDonut(); renderRows(); updateStats(); renderPie(); renderBarChart(); renderQuestoesDoDia(); renderHistoryCharts();
+  saveState(); drawDonut(); renderRows(); updateStats(); renderPie(); renderBarChart(); renderQuestoesDoDia(); renderHistoryCharts(); renderConsistencia();
 });
 
 // ---------- POMODORO ----------
 function fillSubjectSelect(){
-  fillManSubject(); renderCronograma(); renderPlanoHoje();
+  fillManSubject();
   const sel = document.getElementById('subjectSelect');
   const current = sel.value;
   sel.innerHTML = state.subjects.map(s=>`<option value="${s.id}">${s.label}</option>`).join('');
@@ -1456,7 +1534,7 @@ function renderQuestoesDoDia(){
 function dateMinusDays(n){
   const d = new Date();
   d.setDate(d.getDate()-n);
-  return d.toISOString().slice(0,10);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 function weekdayLabel(dateStr){
   const d = new Date(dateStr+'T00:00:00');
@@ -1656,7 +1734,8 @@ function refreshAll(){
   document.getElementById('editalData').value = state.exam.date || '';
   renderCountdown(); renderConcursoList(); renderRevisoes();
   document.getElementById('activeConcursoSelect').value = state.activeConcursoId || '';
-  renderPlanoHoje(); renderCronograma(); renderManualLog(); renderBackupInfo(); renderBackupBanner();
+  renderManualLog(); renderBackupInfo(); renderBackupBanner();
+  fillGoalInputs(); renderConsistencia();
 }
 function applyImport(text){
   let imported;
@@ -2409,6 +2488,352 @@ function renderRevisoes(){
   }));
 }
 
+// ---------- METAS DIÁRIAS E CONSISTÊNCIA ----------
+const MONTH_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const WD_LETTERS = ['S','T','Q','Q','S','S','D'];
+const WD_FULL = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+const ST_LABEL = {green:'Meta batida', yellow:'Parcial', red:'Abaixo da meta', none:'Sem estudo', future:'Dia futuro'};
+const ST_SYMBOL = {green:'✓', yellow:'◐', red:'!', none:'', future:''};
+const ST_BADGE = {green:'background:var(--st-green); color:#052515;', yellow:'background:var(--st-yellow); color:#2a1d00;',
+                  red:'background:var(--st-red); color:#fff;', none:'background:var(--st-none); color:var(--dim);',
+                  future:'background:rgba(255,255,255,.08); color:var(--dim);'};
+const pad2 = n => String(n).padStart(2,'0');
+function fmtDate(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function parseDate(ds){ const [y,m,d] = ds.split('-').map(Number); return new Date(y, m-1, d); }
+function wdIndex(d){ return (d.getDay()+6)%7; }
+function shiftDate(ds, n){ const d = parseDate(ds); d.setDate(d.getDate()+n); return fmtDate(d); }
+function mondayOf(ds){ const d = parseDate(ds); d.setDate(d.getDate()-wdIndex(d)); return fmtDate(d); }
+function daysInMonth(y, m){ return new Date(y, m+1, 0).getDate(); }
+function isLeap(y){ return (y%4===0 && y%100!==0) || y%400===0; }
+function fmtDM(ds){ const d = parseDate(ds); return pad2(d.getDate())+'/'+pad2(d.getMonth()+1); }
+
+// metas (com histórico: mudar a meta não reescreve os dias passados)
+function currentGoal(){ return state.goalHistory[state.goalHistory.length-1]; }
+function goalFor(ds){
+  let g = state.goalHistory[0];
+  for (const e of state.goalHistory){ if (e.from <= ds) g = e; }
+  return g;
+}
+function applyGoal(h, q){
+  const last = currentGoal();
+  if (last.h === h && last.q === q) return false;
+  if (!state.goalSet && state.goalHistory.length === 1){ last.h = h; last.q = q; }
+  else if (last.from === todayStr()){ last.h = h; last.q = q; }
+  else state.goalHistory.push({from: todayStr(), h, q});
+  state.goalSet = true;
+  saveState();
+  return true;
+}
+function fillGoalInputs(){
+  const g = currentGoal();
+  document.getElementById('metaHorasDia').value = g.h;
+  document.getElementById('metaQuestoesDia').value = g.q > 0 ? g.q : '';
+  document.getElementById('metaNote').textContent = state.goalHistory.length > 1
+    ? 'Alterações de meta valem a partir do dia em que foram feitas; dias anteriores mantêm a meta da época.'
+    : 'Se você mudar a meta depois, os dias anteriores mantêm a meta da época.';
+}
+function onGoalChange(){
+  const h = parseFloat(document.getElementById('metaHorasDia').value);
+  const qRaw = document.getElementById('metaQuestoesDia').value;
+  const q = qRaw === '' ? 0 : Math.max(0, parseInt(qRaw)||0);
+  if (!(h > 0)){ toast('A meta de horas por dia precisa ser maior que zero.', 'err'); fillGoalInputs(); return; }
+  const first = !state.goalSet && state.goalHistory.length === 1;
+  const changed = applyGoal(Math.round(h*100)/100, q);
+  fillGoalInputs();
+  if (changed) toast(first ? 'Metas salvas.' : 'Metas atualizadas — valem a partir de hoje.');
+  renderConsistencia();
+}
+document.getElementById('metaHorasDia').addEventListener('change', onGoalChange);
+document.getElementById('metaQuestoesDia').addEventListener('change', onGoalChange);
+
+// dados por dia
+let consQmap = {};
+function buildQMap(){
+  const m = {};
+  const add = (k, t, a) => { if (!k) return; if (!m[k]) m[k] = {t:0, a:0}; m[k].t += t; m[k].a += a; };
+  state.questoes.forEach(q => add(q.date, q.questoes, q.acertos));
+  state.simulados.forEach(r => { const t = simTotals(r); add(r.date, t.total, t.acertos); });
+  return m;
+}
+function dayInfo(ds){
+  const g = goalFor(ds);
+  const h = state.history[ds] || 0;
+  const qd = consQmap[ds] || {t:0, a:0};
+  const hasQ = g.q > 0;
+  let status;
+  if (ds > todayStr()) status = 'future';
+  else if (h <= 0 && qd.t <= 0) status = 'none';
+  else {
+    const hr = h / g.h, qr = hasQ ? qd.t / g.q : 0;
+    const metH = hr >= 1 - 1e-9, metQ = hasQ && qr >= 1;
+    if (metH && (!hasQ || metQ)) status = 'green';
+    else if (metH || metQ) status = 'yellow';
+    else if (hr >= 0.5 || (hasQ && qr >= 0.5)) status = 'yellow';
+    else status = 'red';
+  }
+  return {ds, h, q:qd.t, acertos:qd.a, goalH:g.h, goalQ:g.q, status};
+}
+
+// estado da navegação (não é salvo)
+const _now = new Date();
+let cons = {view:'dia', y:_now.getFullYear(), m:_now.getMonth(), week:mondayOf(todayStr()), year:_now.getFullYear(), sel:todayStr(), heatScroll:null};
+
+function stDot(color){ return `<span class="legend-dot" style="background:${color}"></span>`; }
+function legendHtml(){
+  return `<div class="legend-row" style="flex-wrap:wrap; justify-content:center; margin:12px 0 0;">
+    <span>${stDot('var(--st-green)')}Meta</span><span>${stDot('var(--st-yellow)')}Parcial</span>
+    <span>${stDot('var(--st-red)')}Abaixo</span><span>${stDot('var(--st-none)')}Sem estudo</span></div>`;
+}
+function navHtml(title){
+  return `<div class="cons-nav"><button class="navbtn" data-nav="prev" aria-label="Anterior">‹</button>
+    <div class="cons-title">${title}</div>
+    <button class="navbtn" data-nav="next" aria-label="Próximo">›</button>
+    <button class="btn ghost small" data-nav="today">Hoje</button></div>`;
+}
+function dayDetailHtml(ds){
+  if (!ds) return '<div class="day-detail"><p class="cons-note" style="margin:0;">Toque em um dia para ver os detalhes.</p></div>';
+  const i = dayInfo(ds);
+  const d = parseDate(ds);
+  const title = `${WD_FULL[wdIndex(d)]}, ${fmtDM(ds)}/${d.getFullYear()}`;
+  const color = `var(--st-${i.status === 'future' ? 'none' : i.status})`;
+  const hp = Math.min(100, i.goalH > 0 ? i.h/i.goalH*100 : 0);
+  const qp = Math.min(100, i.goalQ > 0 ? i.q/i.goalQ*100 : 0);
+  const erros = i.q - i.acertos;
+  return `<div class="day-detail">
+    <div class="dd-head"><b>${title}</b><span class="dd-badge" style="${ST_BADGE[i.status]}">${ST_LABEL[i.status]}</span></div>
+    <div class="dd-row"><div class="dd-top"><span>Horas estudadas</span><b>${fmtH(i.h)} / ${fmtH(i.goalH)}</b></div>
+      <div class="progress" style="margin:0;"><div class="progress-fill" style="width:${hp}%; background:${color}"></div></div></div>
+    <div class="dd-row"><div class="dd-top"><span>Questões</span><b>${i.q}${i.goalQ > 0 ? ' / '+i.goalQ : ' (sem meta)'}</b></div>
+      ${i.goalQ > 0 ? `<div class="progress" style="margin:0;"><div class="progress-fill" style="width:${qp}%; background:${color}"></div></div>` : ''}
+      ${i.q > 0 ? `<div class="cons-note" style="margin-top:5px;">${i.acertos} acertos · ${erros} erros</div>` : ''}</div>
+  </div>`;
+}
+function selectDay(ds){
+  cons.sel = ds;
+  document.querySelectorAll('#consBody [data-d]').forEach(el => el.classList.toggle('sel', el.dataset.d === ds));
+  const det = document.getElementById('consDetail');
+  if (det) det.innerHTML = dayDetailHtml(ds);
+}
+function consNavigate(dir){
+  if (dir === 'today'){
+    const n = new Date();
+    cons.y = n.getFullYear(); cons.m = n.getMonth(); cons.week = mondayOf(todayStr()); cons.year = n.getFullYear();
+    cons.sel = todayStr();
+  } else {
+    const st = dir === 'next' ? 1 : -1;
+    if (cons.view === 'semana') cons.week = shiftDate(cons.week, 7*st);
+    else if (cons.view === 'ano') cons.year += st;
+    else {
+      let m = cons.m + st, y = cons.y;
+      if (m < 0){ m = 11; y--; } if (m > 11){ m = 0; y++; }
+      cons.m = m; cons.y = y;
+    }
+    cons.sel = null;
+  }
+  cons.heatScroll = null;
+  renderConsistencia();
+}
+function bindConsBox(box){
+  box.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => consNavigate(b.dataset.nav)));
+  box.querySelectorAll('[data-d]').forEach(c => c.addEventListener('click', () => selectDay(c.dataset.d)));
+}
+
+function renderConsistencia(){
+  const box = document.getElementById('consBody');
+  if (!box) return;
+  updateHistoryToday();
+  consQmap = buildQMap();
+  document.querySelectorAll('#consTabs .ctab').forEach(t => t.classList.toggle('active', t.dataset.v === cons.view));
+  if (cons.view === 'dia') renderConsDia(box);
+  else if (cons.view === 'semana') renderConsSemana(box);
+  else if (cons.view === 'mes') renderConsMes(box);
+  else renderConsAno(box);
+  bindConsBox(box);
+}
+document.getElementById('consTabs').addEventListener('click', e => {
+  const t = e.target.closest('.ctab');
+  if (!t) return;
+  cons.view = t.dataset.v;
+  cons.heatScroll = null;
+  renderConsistencia();
+});
+
+// ----- Dia (calendário do mês) -----
+function renderConsDia(box){
+  const {y, m} = cons;
+  const n = daysInMonth(y, m), lead = wdIndex(new Date(y, m, 1)), today = todayStr();
+  const ym = y+'-'+pad2(m+1);
+  if (!cons.sel || cons.sel.slice(0,7) !== ym) cons.sel = today.slice(0,7) === ym ? today : null;
+  let cells = WD_LETTERS.map(l => `<div class="cal-head">${l}</div>`).join('');
+  for (let i = 0; i < lead; i++) cells += '<div></div>';
+  let green = 0, studied = 0, elapsed = 0, hours = 0, questions = 0;
+  for (let d = 1; d <= n; d++){
+    const ds = ym+'-'+pad2(d), i = dayInfo(ds);
+    if (i.status !== 'future') elapsed++;
+    if (i.status === 'green') green++;
+    if (i.status !== 'none' && i.status !== 'future') studied++;
+    hours += i.h; questions += i.q;
+    cells += `<div class="cal-cell st-${i.status} ${ds===today?'today':''} ${ds===cons.sel?'sel':''}" data-d="${ds}"><span>${d}</span><small>${ST_SYMBOL[i.status]}</small></div>`;
+  }
+  const pct = elapsed > 0 ? Math.round(green/elapsed*100) : 0;
+  box.innerHTML = navHtml(`${MONTH_FULL[m]} ${y}`) + `<div class="cal-grid">${cells}</div>` + legendHtml() + `
+    <div class="cons-sum">
+      <div class="ring" style="--p:${pct}"><span>${pct}%<small>DAS METAS</small></span></div>
+      <div class="cs-item"><div class="cs-n">${studied}d</div><div class="cs-c">estudados</div></div>
+      <div class="cs-item"><div class="cs-n">${fmtH(hours)}</div><div class="cs-c">no mês</div></div>
+      <div class="cs-item"><div class="cs-n">${questions}</div><div class="cs-c">questões</div></div>
+    </div><div id="consDetail">${dayDetailHtml(cons.sel)}</div>`;
+}
+
+// ----- Semana -----
+function weekChartHtml(infos, valKey, goalKey, fmtVal){
+  const scale = Math.max(...infos.map(i => Math.max(i[valKey], i[goalKey]||0)), 0.0001);
+  return `<div class="wk">${infos.map((i, idx) => {
+    const pct = i[valKey]/scale*100, gp = (i[goalKey]||0)/scale*100;
+    const color = `var(--st-${i.status === 'future' ? 'none' : i.status})`;
+    return `<div class="wk-col"><div class="wk-track">${gp > 0 ? `<div class="wk-goal" style="bottom:${gp}%"></div>` : ''}
+      <div class="wk-bar" style="height:${i[valKey] > 0 ? Math.max(pct, 3) : 0}%; background:${color}"></div></div>
+      <div class="wk-val">${i[valKey] > 0 ? fmtVal(i[valKey]) : '–'}</div>
+      <div class="wk-day">${WD_LETTERS[idx]}<br><small>${fmtDM(i.ds).slice(0,2)}</small></div></div>`;
+  }).join('')}</div>`;
+}
+function renderConsSemana(box){
+  const infos = [];
+  for (let i = 0; i < 7; i++) infos.push(dayInfo(shiftDate(cons.week, i)));
+  const totH = infos.reduce((a,i)=>a+i.h,0), totQ = infos.reduce((a,i)=>a+i.q,0);
+  const goalH = infos.reduce((a,i)=>a+i.goalH,0);
+  const goalQ = infos.reduce((a,i)=>a+i.goalQ,0);
+  const greens = infos.filter(i => i.status === 'green').length;
+  const hp = goalH > 0 ? Math.min(100, totH/goalH*100) : 0;
+  box.innerHTML = navHtml(`${fmtDM(infos[0].ds)} – ${fmtDM(infos[6].ds)}`) + `
+    <div class="cons-note" style="margin-bottom:6px;">Horas por dia <span style="opacity:.7">(linha tracejada = meta)</span></div>
+    ${weekChartHtml(infos, 'h', 'goalH', v => fmtH(v))}
+    <div class="cons-note" style="margin-bottom:6px;">Questões por dia</div>
+    ${weekChartHtml(infos, 'q', 'goalQ', v => String(v))}
+    <div class="cons-sum" style="flex-wrap:wrap;">
+      <div class="cs-item"><div class="cs-n">${fmtH(totH)}</div><div class="cs-c">de ${fmtH(goalH)} na semana</div></div>
+      <div class="cs-item"><div class="cs-n">${totQ}</div><div class="cs-c">questões${goalQ > 0 ? ' (meta '+goalQ+')' : ''}</div></div>
+      <div class="cs-item"><div class="cs-n">${greens}/7</div><div class="cs-c">dias com meta</div></div>
+    </div>
+    <div class="progress" style="margin-top:12px;"><div class="progress-fill" style="width:${hp}%; background:var(--st-green)"></div></div>` + legendHtml();
+}
+
+// ----- Mês -----
+function renderConsMes(box){
+  const {y, m} = cons;
+  const n = daysInMonth(y, m), ym = y+'-'+pad2(m+1), infos = [];
+  for (let d = 1; d <= n; d++) infos.push(dayInfo(ym+'-'+pad2(d)));
+  const totH = infos.reduce((a,i)=>a+i.h,0), totQ = infos.reduce((a,i)=>a+i.q,0);
+  const goalH = infos.reduce((a,i)=>a+i.goalH,0);
+  const hp = goalH > 0 ? Math.min(100, totH/goalH*100) : 0;
+  const cnt = {green:0, yellow:0, red:0, none:0};
+  infos.forEach(i => { if (i.status !== 'future') cnt[i.status]++; });
+  const totalDays = cnt.green + cnt.yellow + cnt.red + cnt.none;
+  const seg = k => totalDays > 0 ? cnt[k]/totalDays*100 : 0;
+  const weeks = {};
+  infos.forEach(i => { const k = mondayOf(i.ds); (weeks[k] = weeks[k] || {h:0, days:[]}); weeks[k].h += i.h; weeks[k].days.push(i.ds); });
+  const wkKeys = Object.keys(weeks).sort();
+  const maxW = Math.max(...wkKeys.map(k => weeks[k].h), 0.0001);
+  box.innerHTML = navHtml(`${MONTH_FULL[m]} ${y}`) + `
+    <div class="stat-row" style="margin-top:0;">
+      <div class="stat"><div class="n">${fmtH(totH)}</div><div class="c">de ${fmtH(goalH)} (meta do mês)</div>
+        <div class="progress" style="margin-top:8px;"><div class="progress-fill" style="width:${hp}%; background:var(--st-green)"></div></div></div>
+      <div class="stat"><div class="n">${totQ}</div><div class="c">questões no mês</div></div>
+    </div>
+    <div class="cons-note" style="margin-top:16px;">Dias por situação</div>
+    <div class="dist-bar">
+      <div style="width:${seg('green')}%; background:var(--st-green)"></div><div style="width:${seg('yellow')}%; background:var(--st-yellow)"></div>
+      <div style="width:${seg('red')}%; background:var(--st-red)"></div><div style="width:${seg('none')}%; background:var(--st-none)"></div>
+    </div>
+    <div class="legend-row" style="flex-wrap:wrap; margin:0 0 14px;">
+      <span>${stDot('var(--st-green)')}${cnt.green} meta</span><span>${stDot('var(--st-yellow)')}${cnt.yellow} parcial</span>
+      <span>${stDot('var(--st-red)')}${cnt.red} abaixo</span><span>${stDot('var(--st-none)')}${cnt.none} sem estudo</span>
+    </div>
+    <div class="cons-note" style="margin-bottom:8px;">Horas por semana</div>
+    ${wkKeys.map(k => {
+      const w = weeks[k], a = w.days[0].slice(8), b = w.days[w.days.length-1].slice(8);
+      return `<div class="bar-row"><div class="bar-label">${a}–${b}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${w.h/maxW*100}%; background:var(--gold)"></div></div>
+        <div class="bar-pct" style="width:52px;">${w.h > 0 ? fmtH(w.h) : '–'}</div></div>`;
+    }).join('')}`;
+}
+
+// ----- Ano (mapa de consistência) -----
+function streaks(){
+  const set = new Set();
+  Object.keys(state.history).forEach(k => { if (state.history[k] > 0) set.add(k); });
+  Object.keys(consQmap).forEach(k => { if (consQmap[k].t > 0) set.add(k); });
+  const dates = [...set].sort();
+  let best = 0, run = 0, prev = null;
+  dates.forEach(ds => {
+    run = (prev && shiftDate(prev, 1) === ds) ? run+1 : 1;
+    if (run > best) best = run;
+    prev = ds;
+  });
+  const today = todayStr();
+  let cur = 0, d = set.has(today) ? today : shiftDate(today, -1);
+  while (set.has(d)){ cur++; d = shiftDate(d, -1); }
+  return {best, cur};
+}
+function renderConsAno(box){
+  const y = cons.year, today = todayStr();
+  const jan1 = new Date(y, 0, 1), lead = wdIndex(jan1), nDays = isLeap(y) ? 366 : 365;
+  const cols = Math.ceil((lead + nDays) / 7);
+  let cells = '';
+  for (let i = 0; i < lead; i++) cells += '<div></div>';
+  let total = 0, goalYear = 0, elapsed = 0, studied = 0, greens = 0;
+  for (let k = 0; k < nDays; k++){
+    const d = new Date(y, 0, 1+k), ds = fmtDate(d), i = dayInfo(ds);
+    total += i.h; goalYear += i.goalH;
+    if (ds <= today){ elapsed++; if (i.status !== 'none'){ studied++; } if (i.status === 'green') greens++; }
+    cells += `<div class="hc st-${i.status} ${ds===cons.sel?'sel':''}" data-d="${ds}" title="${fmtDM(ds)}"></div>`;
+  }
+  let prevTotal = 0;
+  Object.keys(state.history).forEach(k => { if (k.startsWith((y-1)+'-')) prevTotal += state.history[k]; });
+  const pct = goalYear > 0 ? total/goalYear*100 : 0;
+  const delta = total - prevTotal;
+  const deltaHtml = prevTotal > 0
+    ? `<div class="cons-note" style="color:${delta >= 0 ? 'var(--st-green)' : 'var(--st-red)'}">${delta >= 0 ? '▲' : '▼'} ${fmtH(Math.abs(delta))} vs. ano anterior</div>`
+    : '<div class="cons-note">sem dados do ano anterior</div>';
+  let labels = '';
+  for (let mo = 0; mo < 12; mo++){
+    const idx = Math.round((new Date(y, mo, 1) - jan1) / 86400000);
+    labels += `<span style="grid-column:${Math.floor((lead+idx)/7)+1}">${MONTH_ABBR[mo].toLowerCase()}</span>`;
+  }
+  const st = streaks();
+  const sel = cons.sel && cons.sel.startsWith(y+'-') ? cons.sel : null;
+  box.innerHTML = navHtml(String(y)) + `
+    <div class="stat-row" style="margin-top:0;">
+      <div class="stat" style="text-align:left; padding:12px 14px;"><div class="cons-note">Total no ano</div>
+        <div class="n" style="margin:2px 0;">${fmtH(total)}</div>${deltaHtml}</div>
+      <div class="stat" style="text-align:left; padding:12px 14px;"><div class="cons-note">Meta anual (${fmtH(goalYear)})</div>
+        <div class="n" style="margin:2px 0;">${Math.round(pct)}%</div><div class="cons-note">da meta · faltam ${fmtH(Math.max(0, goalYear-total))}</div>
+        <div class="progress" style="margin-top:8px;"><div class="progress-fill" style="width:${Math.min(100,pct)}%; background:var(--st-green)"></div></div></div>
+    </div>
+    <div class="cons-note" style="margin:16px 0 8px; font-weight:700; color:var(--text);">Consistência no ano</div>
+    <div class="heat-scroll"><div class="heat-wrap">
+      <div class="heat-months" style="grid-template-columns:repeat(${cols}, var(--cs));">${labels}</div>
+      <div class="heat-grid">${cells}</div>
+    </div></div>` + legendHtml() + `
+    <div class="cons-stat2">
+      <div class="stat"><div class="n">${st.best} dias</div><div class="c">Sequência recorde</div></div>
+      <div class="stat"><div class="n">${st.cur} dias</div><div class="c">Sequência atual</div></div>
+      <div class="stat"><div class="n">${studied}<span style="font-size:12px; color:var(--dim);">/${elapsed}</span></div><div class="c">Dias estudados</div></div>
+      <div class="stat"><div class="n">${greens}</div><div class="c">Metas batidas (dias)</div></div>
+    </div>
+    <div id="consDetail">${dayDetailHtml(sel)}</div>`;
+  const sc = box.querySelector('.heat-scroll');
+  if (sc.clientWidth > 0){
+    if (cons.heatScroll !== null) sc.scrollLeft = cons.heatScroll;
+    else if (y === _now.getFullYear()){
+      const tcol = Math.floor((lead + Math.round((parseDate(today) - jan1)/86400000)) / 7);
+      sc.scrollLeft = Math.max(0, sc.scrollWidth * (tcol/cols) - sc.clientWidth/2);
+      cons.heatScroll = sc.scrollLeft;
+    }
+  }
+  sc.addEventListener('scroll', () => { cons.heatScroll = sc.scrollLeft; });
+}
+
 // ---------- INSTALAR (PWA) ----------
 let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
@@ -2461,7 +2886,7 @@ function fillManSubject(){
 }
 function afterStudyChange(){
   updateHistoryToday(); saveState();
-  drawDonut(); renderRows(); renderPie(); renderBarChart(); renderHistoryCharts(); renderPlanoHoje(); renderBackupBanner();
+  drawDonut(); renderRows(); renderPie(); renderBarChart(); renderHistoryCharts(); renderBackupBanner();
 }
 function fmtMin(min){
   const h = Math.floor(min/60), m = min%60;
@@ -2501,50 +2926,6 @@ function renderManualLog(){
   }));
 }
 
-// ---------- CRONOGRAMA SEMANAL / PLANO DE HOJE ----------
-function renderCronograma(){
-  const el = document.getElementById('cronograma');
-  if (!el) return;
-  const today = new Date().getDay();
-  el.innerHTML = [1,2,3,4,5,6,0].map(d => {
-    const sel = state.cronograma[d] || [];
-    return `<div class="cron-day ${d===today?'today':''}">
-      <div class="cron-name">${WEEKDAYS[d]}${d===today?' · hoje':''}</div>
-      <div class="cron-chips">${state.subjects.map(s => {
-        const on = sel.includes(s.id);
-        return `<span class="cchip" data-day="${d}" data-id="${s.id}" style="${on?`background:${s.color}; border-color:${s.color}; color:#1A1300; font-weight:700;`:''}">${s.label}</span>`;
-      }).join('')}</div></div>`;
-  }).join('');
-  el.querySelectorAll('.cchip').forEach(ch => ch.addEventListener('click', () => {
-    const d = ch.dataset.day, id = ch.dataset.id;
-    const arr = state.cronograma[d] || (state.cronograma[d] = []);
-    const i = arr.indexOf(id);
-    if (i >= 0) arr.splice(i,1); else arr.push(id);
-    saveState(); renderCronograma(); renderPlanoHoje();
-  }));
-}
-function renderPlanoHoje(){
-  const el = document.getElementById('planoHoje');
-  const sub = document.getElementById('planoHojeSub');
-  if (!el) return;
-  const day = new Date().getDay();
-  const subs = (state.cronograma[day] || []).map(id => state.subjects.find(s => s.id === id)).filter(Boolean);
-  sub.textContent = subs.length ? `${WEEKDAYS[day]} — ${subs.length} matéria${subs.length>1?'s':''} planejada${subs.length>1?'s':''}` : WEEKDAYS[day];
-  if (!subs.length){
-    el.innerHTML = '<p class="lead" style="margin:0;">Nenhuma matéria planejada para hoje. Monte o cronograma semanal mais abaixo.</p>';
-    return;
-  }
-  el.innerHTML = subs.map(s => {
-    const pct = s.goal > 0 ? Math.min(100, Math.round(s.studied/s.goal*100)) : 0;
-    const done = s.goal > 0 ? s.studied >= s.goal : s.studied > 0;
-    return `<div class="row" style="margin-bottom:8px;">
-      <div class="row-top"><div class="sw" style="background:${s.color}"></div>
-        <div class="label">${done?'✓ ':''}${s.label}</div>
-        <span class="unit">${fmtH(s.studied)} / ${fmtH(s.goal)}</span></div>
-      <div class="progress"><div class="progress-fill" style="width:${pct}%; background:${s.color}"></div></div></div>`;
-  }).join('');
-}
-
 // ---------- INIT ----------
 drawDonut(); renderRows(); updateMetaGeralField(); fillSubjectSelect(); renderTime(); updateStats();
 fillDisciplinaSelect(); renderPie(); renderBarChart(); renderQuestoesDoDia();
@@ -2559,9 +2940,10 @@ if (state.activeConcursoId){
 }
 renderDisciplinaRanking();
 renderRevisoes();
-renderPlanoHoje(); renderCronograma(); fillManSubject(); renderManualLog();
+fillManSubject(); renderManualLog();
 renderBackupInfo(); renderBackupBanner(); renderInstallInfo();
 fillFonteSelects(); renderFontesList();
+fillGoalInputs(); renderConsistencia();
 </script>
 <script>
 if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
