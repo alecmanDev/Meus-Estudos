@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/32714551/README.md)
 # Meu Estudo — Concurso
 
 App de estudos (ciclo, pomodoro, simulados, concursos) que roda no navegador do celular e do notebook,
