@@ -227,6 +227,24 @@
   .cons-stat2 .stat{padding:12px 8px;}
   .cons-note{font-size:11.5px; color:var(--dim); line-height:1.5;}
 
+  .agenda-banner{background:rgba(124,196,255,.10); border:1px solid rgba(124,196,255,.4); border-radius:12px;
+      padding:4px 14px; margin-bottom:14px; font-size:12.5px;}
+  .agenda-banner .ab-item{padding:10px 0; border-bottom:1px solid rgba(124,196,255,.18);}
+  .agenda-banner .ab-item:last-child{border-bottom:none;}
+  .agenda-banner .ab-actions{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;}
+  .ag-badge{font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:20px; text-transform:uppercase; letter-spacing:.02em;}
+  .ag-badge.today{background:var(--gold); color:#1A1300;}
+  .ag-badge.soon{background:rgba(124,196,255,.18); color:#7CC4FF;}
+  .ag-badge.late{background:rgba(239,91,77,.18); color:var(--st-red);}
+  .ag-badge.done{background:rgba(46,194,126,.18); color:var(--st-green);}
+  .ag-card{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px;}
+  .ag-card .ag-top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .ag-actions{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;}
+  a.btn{text-decoration:none; display:inline-block;}
+  .cal-cell{position:relative;}
+  .cal-cell.has-sim::after{content:''; position:absolute; top:5px; right:5px; width:7px; height:7px; border-radius:50%;
+      background:#7CC4FF; box-shadow:0 0 0 1.5px rgba(0,0,0,.35);}
+
   /* ===== Layout para telas maiores (tablet / notebook) ===== */
   @media (min-width: 760px){
     body{padding:24px 24px 56px;}
@@ -268,6 +286,7 @@
     <div class="tab" data-view="simulados">Simulados</div>
     <div class="tab" data-view="concursos">Concursos</div>
   </div>
+  <div id="agendaBanner" class="agenda-banner" style="display:none;"></div>
   <div id="backupBanner" class="backup-banner" style="display:none;"></div>
 
   <div class="view active" id="view-ciclo">
@@ -296,20 +315,27 @@
     </section>
 
     <section>
+      <h2>Próximo simulado</h2>
+      <div id="proxSimDisplay" style="text-align:center; margin-top:10px;"></div>
+      <button class="btn ghost small" id="goAgendaBtn" style="margin-top:14px; width:100%;">Abrir agenda de simulados</button>
+    </section>
+
+    <section>
       <h2>Ciclo de estudos</h2>
-      <p class="lead">Metas por matéria e progresso estudado hoje. Tudo é editável.</p>
+      <p class="lead">Metas por matéria. O ciclo não reseta sozinho — só quando todas as metas forem batidas, ou se você zerar manualmente.</p>
       <div class="meta-geral">
         <label>Meta geral do ciclo</label>
         <div><input type="number" step="0.5" min="0" id="metaGeralInput" value="0"><span class="unit">h</span></div>
       </div>
       <div class="donut-wrap">
         <svg id="donut" width="230" height="230" viewBox="0 0 230 230"></svg>
+        <div class="cons-note" id="cycleAge" style="margin-top:-8px;"></div>
         <div class="rows" id="rows"></div>
         <div class="add-row">
           <input id="newSubject" placeholder="Nova matéria" />
           <button class="btn" id="addSubjectBtn">Adicionar</button>
         </div>
-        <button class="btn ghost small" id="resetDay" style="align-self:flex-end;">Zerar progresso de hoje</button>
+        <button class="btn ghost small" id="resetDay" style="align-self:flex-end;">Zerar progresso do ciclo</button>
       </div>
     </section>
 
@@ -541,6 +567,44 @@
 
   <div class="view" id="view-simulados">
     <section>
+      <h2 id="agFormTitle">Agendar simulado</h2>
+      <p class="lead">Marque a data e receba avisos na semana e no dia. Tudo pode ser editado depois.</p>
+      <div class="q-form">
+        <div class="full"><label>Nome</label><input id="agNome" placeholder="Ex: Simulado Gran Cursos #4"></div>
+        <div><label>Data</label><input id="agData" type="date"></div>
+        <div><label>Horário (opcional)</label><input id="agHora" type="time"></div>
+        <div class="full"><label>Concurso (opcional)</label><select id="agConcurso"></select></div>
+        <div><label>Repetir</label>
+          <select id="agRepeat">
+            <option value="none">Não repetir</option>
+            <option value="w1">Toda semana</option>
+            <option value="w2">A cada 2 semanas</option>
+            <option value="m1">Todo mês</option>
+          </select>
+        </div>
+        <div><label>Avisar a partir de (dias antes)</label><input id="agLead" type="number" min="0" max="60" value="7"></div>
+        <div class="full"><label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13px; color:var(--text);">
+          <input id="agNoDia" type="checkbox" checked style="width:auto;"> Avisar também no dia do simulado</label></div>
+        <div class="full"><label>Observações (opcional)</label><input id="agObs" placeholder="Ex: link da plataforma, local"></div>
+        <div class="full" style="display:flex; gap:8px;">
+          <button class="btn" id="addAgendaBtn" style="flex:1;">Agendar simulado</button>
+          <button class="btn ghost" id="cancelAgendaBtn" style="display:none;">Cancelar</button>
+        </div>
+      </div>
+      <p class="cons-note" style="margin:0;">Os avisos aparecem no topo do app quando você o abre. Para ser avisado com o app fechado, use o botão “Calendário” do simulado (no app instalado).</p>
+    </section>
+
+    <section>
+      <h2>Simulados agendados</h2>
+      <p class="lead">Toque em “Registrar” no dia para lançar o resultado já preenchido.</p>
+      <div id="agendaList"></div>
+      <details id="agendaDoneBox" style="margin-top:12px; display:none;">
+        <summary>Concluídos</summary>
+        <div id="agendaDone" style="margin-top:10px;"></div>
+      </details>
+    </section>
+
+    <section>
       <h2 id="simFormTitle">Registrar simulado</h2>
       <p class="lead">Preencha questões e acertos de cada disciplina do seu ciclo.</p>
       <div class="q-form">
@@ -735,9 +799,10 @@ function loadState(rawObj){
     s = { date: todayStr(), subjects: defaultSubjects(), pomosToday:0, minutesToday:0, questoes:[], redacoes:[] };
   } else if (s.date !== todayStr()){
     s.date = todayStr();
-    s.subjects = s.subjects.map(x => ({...x, studied:0}));
-    s.pomosToday = 0; s.minutesToday = 0;
+    s.pomosToday = 0; s.minutesToday = 0; // contadores só de hoje; o progresso do ciclo NÃO reseta sozinho
   }
+  if (!s.cycleStart) s.cycleStart = s.date;
+  if (!Array.isArray(s.pomoLog)) s.pomoLog = [];
   if (!s.questoes) s.questoes = [];
   if (!s.redacoes) s.redacoes = [];
   if (!s.history) s.history = {};
@@ -746,6 +811,7 @@ function loadState(rawObj){
   if (!s.exam) s.exam = {status:'pre', date:null};
   if (s.activeConcursoId === undefined) s.activeConcursoId = null;
   if (!s.revisoes) s.revisoes = [];
+  if (!Array.isArray(s.simAgenda)) s.simAgenda = [];
   if (!Array.isArray(s.goalHistory) || s.goalHistory.length === 0) s.goalHistory = [{from:'0000-00-00', h:1, q:10}];
   if (s.goalSet === undefined) s.goalSet = false;
   if (!Array.isArray(s.fontes) || s.fontes.length === 0) s.fontes = [...DEFAULT_FONTES];
@@ -791,8 +857,36 @@ function defaultConcursos(){
   });
   return out;
 }
-function updateHistoryToday(){
-  state.history[todayStr()] = state.subjects.reduce((a,s)=>a+s.studied,0);
+// Soma horas ao progresso do ciclo (que só zera quando o ciclo é completado ou manualmente) e,
+// separadamente, registra a data/matéria para os gráficos "de hoje" e o mapa de consistência.
+function addStudiedHours(subject, hours, ds){
+  const day = ds || todayStr();
+  subject.studied += hours;
+  state.history[day] = (state.history[day] || 0) + hours;
+  state.pomoLog.push({date: day, subjectId: subject.id, hours});
+}
+function removeStudiedHours(subject, hours, ds){
+  const day = ds || todayStr();
+  if (subject) subject.studied = Math.max(0, subject.studied - hours);
+  state.history[day] = Math.max(0, (state.history[day] || 0) - hours);
+}
+function todaySubjectHours(){
+  const map = {};
+  const today = todayStr();
+  const add = (subjectId, hours) => { map[subjectId] = (map[subjectId]||0) + hours; };
+  state.pomoLog.forEach(e => { if (e.date === today) add(e.subjectId, e.hours); });
+  state.manualLog.forEach(e => { if (e.date === today) add(e.subjectId, e.minutes/60); });
+  return map;
+}
+// Verifica se todas as matérias com meta já bateram a meta; se sim, comemora e começa um novo ciclo.
+function checkCycleComplete(){
+  const comMeta = state.subjects.filter(s => s.goal > 0);
+  if (comMeta.length === 0) return;
+  if (!comMeta.every(s => s.studied >= s.goal - 1e-9)) return;
+  const dias = Math.max(0, diffDaysStr(todayStr(), state.cycleStart));
+  toast(`🎉 Ciclo completo em ${dias} dia${dias===1?'':'s'}! Todas as metas foram batidas — começando um novo ciclo.`);
+  state.subjects.forEach(s => { s.studied = 0; });
+  state.cycleStart = todayStr();
 }
 function saveState(){
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){}
@@ -819,6 +913,7 @@ document.querySelectorAll('.tab').forEach(t => {
     if (t.scrollIntoView) t.scrollIntoView({inline:'center', block:'nearest', behavior:'smooth'});
     if (t.dataset.view === 'resumo') { renderPie(); renderBarChart(); renderQuestoesDoDia(); fillDisciplinaSelect(); renderHistoryCharts(); }
     if (t.dataset.view === 'simulados') {
+      fillAgendaConcursoSelect(); renderAgendaList();
       fillSimConcursoOptions();
       if (editingSimIndex === null){
         const cid = document.getElementById('simConcursoSelect').value || null;
@@ -902,7 +997,15 @@ function updateRowVisual(s){
   row.querySelector('.row-fine').textContent = `${fmtH(s.studied)} estudado de ${fmtH(s.goal)} (${pct}%)`;
 }
 
+function renderCycleAge(){
+  const el = document.getElementById('cycleAge');
+  if (!el) return;
+  const dias = Math.max(0, diffDaysStr(todayStr(), state.cycleStart));
+  const dataFmt = new Date(state.cycleStart+'T12:00:00').toLocaleDateString('pt-BR');
+  el.textContent = dias === 0 ? `Ciclo iniciado hoje (${dataFmt})` : `Ciclo em andamento há ${dias} dia${dias===1?'':'s'} (desde ${dataFmt})`;
+}
 function drawDonut(){
+  renderCycleAge();
   const total = totalGoal();
   const svg = document.getElementById('donut');
   svg.innerHTML = '';
@@ -924,7 +1027,7 @@ function drawDonut(){
   fo.setAttribute('x',cx-rI); fo.setAttribute('y',cy-rI); fo.setAttribute('width',rI*2); fo.setAttribute('height',rI*2);
   const studiedTotal = state.subjects.reduce((a,s)=>a+s.studied,0);
   fo.innerHTML = `<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;text-align:center;">
-    <div style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--dim);">Estudado hoje</div>
+<div style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--dim);">Estudado no ciclo</div>
     <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:26px;color:var(--gold);">${fmtH(studiedTotal)}</div>
     <div style="font-size:11px;color:var(--dim);">meta: ${fmtH(total)}</div>
   </div>`;
@@ -959,10 +1062,11 @@ document.getElementById('addSubjectBtn').addEventListener('click', () => {
   saveState(); drawDonut(); renderRows(); updateMetaGeralField(); fillSubjectSelect(); fillDisciplinaSelect(); renderDiscList();
 });
 document.getElementById('resetDay').addEventListener('click', () => {
-  state.subjects.forEach(s=>s.studied=0);
-  state.pomosToday=0; state.minutesToday=0;
-  updateHistoryToday();
-  saveState(); drawDonut(); renderRows(); updateStats(); renderPie(); renderBarChart(); renderQuestoesDoDia(); renderHistoryCharts(); renderConsistencia();
+  askConfirm('Zerar o progresso de todas as matérias do ciclo atual? As horas já registradas no Histórico não são afetadas.', () => {
+    state.subjects.forEach(s=>s.studied=0);
+    state.cycleStart = todayStr();
+    saveState(); drawDonut(); renderRows(); toast('Progresso do ciclo zerado.');
+  });
 });
 
 // ---------- POMODORO ----------
@@ -1000,10 +1104,10 @@ function tick(){
     if (mode==='work'){
       const subjId = document.getElementById('subjectSelect').value;
       const s = state.subjects.find(x=>x.id===subjId);
-      if (s) { s.studied += workSec/3600; updateRowVisual(s); }
+      if (s) { addStudiedHours(s, workSec/3600); updateRowVisual(s); }
       state.pomosToday++; state.minutesToday += Math.round(workSec/60);
-      updateHistoryToday();
-      saveState(); drawDonut(); updateStats();
+      checkCycleComplete();
+      saveState(); drawDonut(); renderRows(); updateStats();
       mode='rest'; remaining=restSec;
     } else {
       mode='work'; remaining=workSec;
@@ -1420,7 +1524,8 @@ function drawRedLine(){
 function renderPie(){
   const svg = document.getElementById('pie');
   svg.innerHTML = '';
-  const studied = state.subjects.filter(s => s.studied > 0);
+  const todayMap = todaySubjectHours();
+  const studied = state.subjects.filter(s => (todayMap[s.id]||0) > 0).map(s => ({...s, studied: todayMap[s.id]}));
   const total = studied.reduce((a,s)=>a+s.studied,0);
   const cx=110, cy=110, r=98;
   if (total <= 0){
@@ -1462,7 +1567,8 @@ function renderPie(){
 function renderBarChart(){
   const el = document.getElementById('barChart');
   el.innerHTML = '';
-  const studied = state.subjects.filter(s => s.studied > 0);
+  const todayMap = todaySubjectHours();
+  const studied = state.subjects.filter(s => (todayMap[s.id]||0) > 0).map(s => ({...s, studied: todayMap[s.id]}));
   const total = studied.reduce((a,s)=>a+s.studied,0);
   if (total <= 0){
     el.innerHTML = '<p class="lead" style="margin:0;">Nada estudado ainda hoje.</p>';
@@ -1631,7 +1737,6 @@ document.getElementById('questoesMonthFilter').addEventListener('change', e => {
 });
 
 function renderHistoryCharts(){
-  updateHistoryToday();
   const weekItems = [];
   for (let i=6;i>=0;i--){
     const ds = dateMinusDays(i);
@@ -1654,7 +1759,7 @@ const downloadsReady = (async () => {
 function hasUserData(){
   return state.questoes.length || state.simulados.length || state.redacoes.length || state.revisoes.length ||
          state.manualLog.length || Object.values(state.history).some(v => v > 0) ||
-         state.concursos.some(c => c.disciplinas.length > 0);
+         state.simAgenda.length || state.concursos.some(c => c.disciplinas.length > 0);
 }
 function markBackup(){
   state.lastBackup = todayStr();
@@ -1735,7 +1840,8 @@ function refreshAll(){
   renderCountdown(); renderConcursoList(); renderRevisoes();
   document.getElementById('activeConcursoSelect').value = state.activeConcursoId || '';
   renderManualLog(); renderBackupInfo(); renderBackupBanner();
-  fillGoalInputs(); renderConsistencia();
+  fillGoalInputs(); renderConsistencia(); renderCycleAge();
+  fillAgendaConcursoSelect(); renderAgendaAll();
 }
 function applyImport(text){
   let imported;
@@ -1892,6 +1998,7 @@ function clearSimForm(){
   document.getElementById('simFormTitle').textContent = 'Registrar simulado';
   document.getElementById('addSimBtn').textContent = 'Adicionar simulado';
   document.getElementById('cancelSimBtn').style.display = 'none';
+  pendingAgendaId = null;
 }
 
 document.getElementById('addSimBtn').addEventListener('click', () => {
@@ -1930,8 +2037,15 @@ document.getElementById('addSimBtn').addEventListener('click', () => {
   } else {
     state.simulados.push(entry);
   }
+  let agendaMsg = '';
+  if (editingSimIndex === null){
+    let ag = pendingAgendaId ? state.simAgenda.find(x => x.id === pendingAgendaId) : null;
+    if (!ag || ag.done) ag = state.simAgenda.find(x => !x.done && x.date === data);
+    if (ag){ const next = completeAgenda(ag); agendaMsg = 'Simulado agendado marcado como concluído' + (next ? ` — próximo em ${fmtDM(next.date)}.` : '.'); }
+  }
   clearSimForm();
-  saveState(); renderSimulados();
+  saveState(); renderSimulados(); renderAgendaAll();
+  if (agendaMsg) toast(agendaMsg);
 });
 document.getElementById('cancelSimBtn').addEventListener('click', clearSimForm);
 
@@ -2579,10 +2693,11 @@ const _now = new Date();
 let cons = {view:'dia', y:_now.getFullYear(), m:_now.getMonth(), week:mondayOf(todayStr()), year:_now.getFullYear(), sel:todayStr(), heatScroll:null};
 
 function stDot(color){ return `<span class="legend-dot" style="background:${color}"></span>`; }
-function legendHtml(){
+function legendHtml(withSim){
   return `<div class="legend-row" style="flex-wrap:wrap; justify-content:center; margin:12px 0 0;">
     <span>${stDot('var(--st-green)')}Meta</span><span>${stDot('var(--st-yellow)')}Parcial</span>
-    <span>${stDot('var(--st-red)')}Abaixo</span><span>${stDot('var(--st-none)')}Sem estudo</span></div>`;
+    <span>${stDot('var(--st-red)')}Abaixo</span><span>${stDot('var(--st-none)')}Sem estudo</span>
+    ${withSim ? `<span>${stDot('#7CC4FF')}Simulado</span>` : ''}</div>`;
 }
 function navHtml(title){
   return `<div class="cons-nav"><button class="navbtn" data-nav="prev" aria-label="Anterior">‹</button>
@@ -2606,6 +2721,7 @@ function dayDetailHtml(ds){
     <div class="dd-row"><div class="dd-top"><span>Questões</span><b>${i.q}${i.goalQ > 0 ? ' / '+i.goalQ : ' (sem meta)'}</b></div>
       ${i.goalQ > 0 ? `<div class="progress" style="margin:0;"><div class="progress-fill" style="width:${qp}%; background:${color}"></div></div>` : ''}
       ${i.q > 0 ? `<div class="cons-note" style="margin-top:5px;">${i.acertos} acertos · ${erros} erros</div>` : ''}</div>
+    ${agendaDetailHtml(ds)}
   </div>`;
 }
 function selectDay(ds){
@@ -2641,7 +2757,6 @@ function bindConsBox(box){
 function renderConsistencia(){
   const box = document.getElementById('consBody');
   if (!box) return;
-  updateHistoryToday();
   consQmap = buildQMap();
   document.querySelectorAll('#consTabs .ctab').forEach(t => t.classList.toggle('active', t.dataset.v === cons.view));
   if (cons.view === 'dia') renderConsDia(box);
@@ -2673,10 +2788,10 @@ function renderConsDia(box){
     if (i.status === 'green') green++;
     if (i.status !== 'none' && i.status !== 'future') studied++;
     hours += i.h; questions += i.q;
-    cells += `<div class="cal-cell st-${i.status} ${ds===today?'today':''} ${ds===cons.sel?'sel':''}" data-d="${ds}"><span>${d}</span><small>${ST_SYMBOL[i.status]}</small></div>`;
+    cells += `<div class="cal-cell st-${i.status} ${ds===today?'today':''} ${ds===cons.sel?'sel':''} ${simOnDate(ds).length?'has-sim':''}" data-d="${ds}"><span>${d}</span><small>${ST_SYMBOL[i.status]}</small></div>`;
   }
   const pct = elapsed > 0 ? Math.round(green/elapsed*100) : 0;
-  box.innerHTML = navHtml(`${MONTH_FULL[m]} ${y}`) + `<div class="cal-grid">${cells}</div>` + legendHtml() + `
+  box.innerHTML = navHtml(`${MONTH_FULL[m]} ${y}`) + `<div class="cal-grid">${cells}</div>` + legendHtml(true) + `
     <div class="cons-sum">
       <div class="ring" style="--p:${pct}"><span>${pct}%<small>DAS METAS</small></span></div>
       <div class="cs-item"><div class="cs-n">${studied}d</div><div class="cs-c">estudados</div></div>
@@ -2834,6 +2949,314 @@ function renderConsAno(box){
   sc.addEventListener('scroll', () => { cons.heatScroll = sc.scrollLeft; });
 }
 
+// ---------- AGENDA DE SIMULADOS ----------
+let editingAgendaId = null, pendingAgendaId = null;
+const REPEAT_LABEL = {none:'Não repetir', w1:'Toda semana', w2:'A cada 2 semanas', m1:'Todo mês'};
+function goToTab(v){ const t = document.querySelector(`.tab[data-view="${v}"]`); if (t) t.click(); }
+function fmtLongDate(ds){ const d = parseDate(ds); return `${WD_FULL[wdIndex(d)]}, ${fmtDM(ds)}/${d.getFullYear()}`; }
+function agConcursoNome(a){ const c = a.concursoId && state.concursos.find(x => x.id === a.concursoId); return c ? c.nome : ''; }
+function simOnDate(ds){ return state.simAgenda.filter(a => a.date === ds); }
+function agendaDetailHtml(ds){
+  const list = simOnDate(ds);
+  if (!list.length) return '';
+  return list.map(a => `<div class="cons-note" style="margin-top:10px;">📝 Simulado${a.done ? ' (concluído)' : ' agendado'}: <b style="color:var(--text)">${escHtml(a.nome)}</b>${a.time ? ' · '+a.time : ''}</div>`).join('');
+}
+function fillAgendaConcursoSelect(){
+  const sel = document.getElementById('agConcurso');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Nenhum</option>' + state.concursos.map(c => `<option value="${c.id}">${escHtml(c.nome)}</option>`).join('');
+  if (state.concursos.find(c => c.id === cur)) sel.value = cur;
+}
+function addMonthsStr(ds, n){
+  const d = parseDate(ds), day = d.getDate();
+  d.setDate(1); d.setMonth(d.getMonth()+n);
+  d.setDate(Math.min(day, daysInMonth(d.getFullYear(), d.getMonth())));
+  return fmtDate(d);
+}
+function nextOccurrence(a){
+  const today = todayStr();
+  let ds = a.date;
+  for (let i = 0; i < 400; i++){
+    ds = a.repeat === 'w1' ? shiftDate(ds, 7) : a.repeat === 'w2' ? shiftDate(ds, 14) : addMonthsStr(ds, 1);
+    if (ds > today) return ds;
+  }
+  return null;
+}
+// marca como concluído; se repete, cria a próxima ocorrência
+function completeAgenda(a){
+  a.done = true;
+  if (!a.repeat || a.repeat === 'none') return null;
+  const ds = nextOccurrence(a);
+  if (!ds || state.simAgenda.some(x => !x.done && x.date === ds && x.nome === a.nome)) return null;
+  const nx = {...a, id:'ag'+Date.now()+Math.floor(Math.random()*1000), date:ds, done:false, snooze:null};
+  state.simAgenda.push(nx);
+  return nx;
+}
+function agendaStatus(a){
+  if (a.done) return {k:'done', label:'Concluído'};
+  const d = diffDaysStr(a.date, todayStr());
+  if (d === 0) return {k:'today', label:'Hoje'};
+  if (d === 1) return {k:'soon', label:'Amanhã'};
+  if (d > 1) return {k:'soon', label:`Em ${d} dias`};
+  return {k:'late', label:'Sem resultado registrado'};
+}
+function sortAgenda(list){ return list.slice().sort((x, y) => (x.date + (x.time||'')).localeCompare(y.date + (y.time||''))); }
+
+// formulário
+function clearAgendaForm(){
+  ['agNome','agData','agHora','agObs'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('agConcurso').value = '';
+  document.getElementById('agRepeat').value = 'none';
+  document.getElementById('agLead').value = 7;
+  document.getElementById('agNoDia').checked = true;
+  editingAgendaId = null;
+  document.getElementById('agFormTitle').textContent = 'Agendar simulado';
+  document.getElementById('addAgendaBtn').textContent = 'Agendar simulado';
+  document.getElementById('cancelAgendaBtn').style.display = 'none';
+}
+document.getElementById('cancelAgendaBtn').addEventListener('click', clearAgendaForm);
+document.getElementById('addAgendaBtn').addEventListener('click', () => {
+  const nome = document.getElementById('agNome').value.trim() || 'Simulado';
+  const date = document.getElementById('agData').value;
+  if (!date){ toast('Escolha a data do simulado.', 'err'); return; }
+  const leadRaw = parseInt(document.getElementById('agLead').value);
+  const data = {
+    nome, date,
+    time: document.getElementById('agHora').value || '',
+    concursoId: document.getElementById('agConcurso').value || '',
+    repeat: document.getElementById('agRepeat').value,
+    lead: isNaN(leadRaw) ? 7 : Math.min(60, Math.max(0, leadRaw)),
+    noDia: document.getElementById('agNoDia').checked,
+    obs: document.getElementById('agObs').value.trim()
+  };
+  const editing = editingAgendaId !== null;
+  if (editing){
+    const a = state.simAgenda.find(x => x.id === editingAgendaId);
+    Object.assign(a, data, {snooze:null});
+  } else {
+    state.simAgenda.push({id:'ag'+Date.now(), ...data, done:false, snooze:null});
+  }
+  clearAgendaForm(); saveState(); renderAgendaAll();
+  toast(editing ? 'Agendamento atualizado.' : 'Simulado agendado!');
+});
+function startEditAgenda(id){
+  const a = state.simAgenda.find(x => x.id === id);
+  if (!a) return;
+  fillAgendaConcursoSelect();
+  editingAgendaId = id;
+  document.getElementById('agNome').value = a.nome;
+  document.getElementById('agData').value = a.date;
+  document.getElementById('agHora').value = a.time || '';
+  document.getElementById('agConcurso').value = a.concursoId || '';
+  document.getElementById('agRepeat').value = a.repeat || 'none';
+  document.getElementById('agLead').value = a.lead;
+  document.getElementById('agNoDia').checked = a.noDia !== false;
+  document.getElementById('agObs').value = a.obs || '';
+  document.getElementById('agFormTitle').textContent = 'Editando agendamento';
+  document.getElementById('addAgendaBtn').textContent = 'Salvar alteração';
+  document.getElementById('cancelAgendaBtn').style.display = 'inline-block';
+  document.getElementById('agFormTitle').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function registerFromAgenda(id){
+  const a = state.simAgenda.find(x => x.id === id);
+  if (!a) return;
+  clearSimForm();
+  fillSimConcursoOptions();
+  document.getElementById('simNome').value = a.nome;
+  document.getElementById('simData').value = a.date > todayStr() ? todayStr() : a.date;
+  if (a.concursoId){
+    const sel = document.getElementById('simConcursoSelect');
+    sel.value = a.concursoId;
+    sel.dispatchEvent(new Event('change'));
+  }
+  pendingAgendaId = id;
+  document.getElementById('simFormTitle').scrollIntoView({behavior:'smooth', block:'start'});
+  toast('Formulário preenchido. Informe os acertos e salve.');
+}
+
+// calendário (.ics com alarmes) e Google Agenda
+function icsEscape(t){ return String(t||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n'); }
+function icsFold(line){ let out = ''; while (line.length > 73){ out += line.slice(0,73) + '\r\n '; line = line.slice(73); } return out + line; }
+function agTimes(a){
+  const ymd = a.date.replace(/-/g,'');
+  if (!a.time) return {start: ymd, end: shiftDate(a.date, 1).replace(/-/g,''), allDay:true};
+  const [hh, mm] = a.time.split(':').map(Number);
+  const c = a.concursoId ? state.concursos.find(x => x.id === a.concursoId) : null;
+  const dur = (c && c.tempoProva) ? c.tempoProva : 180;
+  const s0 = parseDate(a.date); s0.setHours(hh, mm, 0, 0);
+  const e0 = new Date(s0.getTime() + dur*60000);
+  const f = d => d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate())+'T'+pad2(d.getHours())+pad2(d.getMinutes())+'00';
+  return {start: f(s0), end: f(e0), allDay:false};
+}
+function agDescription(a){
+  const parts = [];
+  const cn = agConcursoNome(a);
+  if (cn) parts.push('Concurso: ' + cn);
+  if (a.obs) parts.push(a.obs);
+  return parts.join('\n');
+}
+function buildICS(a){
+  const t = agTimes(a), n = new Date();
+  const stamp = n.getUTCFullYear()+pad2(n.getUTCMonth()+1)+pad2(n.getUTCDate())+'T'+pad2(n.getUTCHours())+pad2(n.getUTCMinutes())+pad2(n.getUTCSeconds())+'Z';
+  const L = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Meu Estudo//PT-BR','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',
+    `UID:${a.id}@meu-estudo`, `DTSTAMP:${stamp}`];
+  if (t.allDay) L.push(`DTSTART;VALUE=DATE:${t.start}`, `DTEND;VALUE=DATE:${t.end}`);
+  else L.push(`DTSTART:${t.start}`, `DTEND:${t.end}`);
+  L.push('SUMMARY:' + icsEscape('Simulado: ' + a.nome));
+  const desc = agDescription(a);
+  if (desc) L.push('DESCRIPTION:' + icsEscape(desc));
+  if (a.lead > 0){
+    const trig = t.allDay ? (a.lead > 1 ? `-P${a.lead-1}DT15H` : '-PT15H') : `-P${a.lead}D`;
+    L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:' + icsEscape(`Simulado em ${a.lead} dia${a.lead>1?'s':''}: ${a.nome}`),'TRIGGER:'+trig,'END:VALARM');
+  }
+  if (a.noDia !== false){
+    L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:' + icsEscape(`Hoje é dia de simulado: ${a.nome}`),'TRIGGER:'+(t.allDay ? 'PT8H' : '-PT60M'),'END:VALARM');
+  }
+  L.push('END:VEVENT','END:VCALENDAR');
+  return L.map(icsFold).join('\r\n') + '\r\n';
+}
+function downloadIcs(a){
+  if (window.self !== window.top){ toast('O lembrete no calendário funciona no app instalado (fora do Claude).', 'err'); return; }
+  try {
+    const blob = new Blob([buildICS(a)], {type:'text/calendar;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = `simulado-${a.date}.ics`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast('Arquivo do calendário gerado. Abra-o para adicionar o lembrete.');
+  } catch(e){ toast('Não foi possível gerar o arquivo do calendário.', 'err'); }
+}
+function googleCalUrl(a){
+  const t = agTimes(a);
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('Simulado: ' + a.nome) +
+    '&dates=' + t.start + '/' + t.end + '&details=' + encodeURIComponent(agDescription(a));
+}
+
+// lista
+function agCardHtml(a, done){
+  const st = agendaStatus(a), cn = agConcursoNome(a);
+  const meta = [fmtLongDate(a.date) + (a.time ? ' · ' + a.time : ''), cn, a.repeat && a.repeat !== 'none' ? '🔁 ' + REPEAT_LABEL[a.repeat] : '', a.obs].filter(Boolean).map(escHtml).join(' · ');
+  const avisos = `Avisos: ${a.lead > 0 ? a.lead + ' dia'+(a.lead>1?'s':'')+' antes' : 'sem aviso prévio'}${a.noDia !== false ? ' e no dia' : ''}`;
+  return `<div class="ag-card"><div class="ag-top"><div><div class="disc-name">${escHtml(a.nome)}</div>
+      <div class="q-meta">${meta}</div>${done ? '' : `<div class="q-meta">${avisos}</div>`}</div>
+      <span class="ag-badge ${st.k}">${st.label}</span></div>
+    <div class="ag-actions">${done ? `
+      <button class="btn ghost small" data-act="reopen" data-id="${a.id}">Reabrir</button>
+      <button class="btn ghost small" data-act="del" data-id="${a.id}" style="color:var(--bad);">Excluir</button>` : `
+      <button class="btn small" data-act="reg" data-id="${a.id}">Registrar</button>
+      <button class="btn ghost small" data-act="done" data-id="${a.id}">Concluir</button>
+      <button class="btn ghost small" data-act="ics" data-id="${a.id}">📅 Calendário</button>
+      <a class="btn ghost small" href="${googleCalUrl(a)}" target="_blank" rel="noopener">Google Agenda</a>
+      <button class="btn ghost small" data-act="edit" data-id="${a.id}">Editar</button>
+      <button class="btn ghost small" data-act="del" data-id="${a.id}" style="color:var(--bad);">Excluir</button>`}
+    </div></div>`;
+}
+function renderAgendaList(){
+  const el = document.getElementById('agendaList');
+  if (!el) return;
+  const pend = sortAgenda(state.simAgenda.filter(a => !a.done));
+  const done = sortAgenda(state.simAgenda.filter(a => a.done)).reverse();
+  el.innerHTML = pend.length ? pend.map(a => agCardHtml(a, false)).join('') : '<p class="lead" style="margin:0;">Nenhum simulado agendado. Use o formulário acima.</p>';
+  const box = document.getElementById('agendaDoneBox');
+  box.style.display = done.length ? 'block' : 'none';
+  box.querySelector('summary').textContent = `Concluídos (${done.length})`;
+  document.getElementById('agendaDone').innerHTML = done.map(a => agCardHtml(a, true)).join('');
+}
+function onAgendaClick(e){
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const id = b.dataset.id, a = state.simAgenda.find(x => x.id === id);
+  if (!a) return;
+  const act = b.dataset.act;
+  if (act === 'reg') registerFromAgenda(id);
+  else if (act === 'edit') startEditAgenda(id);
+  else if (act === 'ics') downloadIcs(a);
+  else if (act === 'done'){
+    const nx = completeAgenda(a); saveState(); renderAgendaAll();
+    toast(nx ? `Concluído. Próximo agendado para ${fmtDM(nx.date)}.` : 'Simulado marcado como concluído.');
+  } else if (act === 'reopen'){ a.done = false; saveState(); renderAgendaAll(); }
+  else if (act === 'del'){
+    askConfirm(`Excluir o agendamento "${a.nome}"?`, () => {
+      state.simAgenda = state.simAgenda.filter(x => x.id !== id);
+      if (editingAgendaId === id) clearAgendaForm();
+      saveState(); renderAgendaAll();
+    });
+  }
+}
+document.getElementById('agendaList').addEventListener('click', onAgendaClick);
+document.getElementById('agendaDone').addEventListener('click', onAgendaClick);
+
+// próximo simulado (aba Ciclo)
+function nextSim(){
+  const today = todayStr();
+  return sortAgenda(state.simAgenda.filter(a => !a.done && a.date >= today))[0] || null;
+}
+function renderProxSim(){
+  const el = document.getElementById('proxSimDisplay');
+  if (!el) return;
+  const a = nextSim();
+  if (!a){
+    el.innerHTML = '<div style="font-size:13px; color:var(--dim);">Nenhum simulado agendado.</div>';
+    return;
+  }
+  const d = diffDaysStr(a.date, todayStr()), cn = agConcursoNome(a);
+  const big = d === 0 ? `<div style="font-family:'Sora',sans-serif; font-weight:800; font-size:22px; color:var(--gold);">🎯 É hoje!</div>`
+    : d === 1 ? `<div style="font-family:'Sora',sans-serif; font-weight:800; font-size:26px; color:var(--gold);">Amanhã</div>`
+    : `<div style="font-family:'Sora',sans-serif; font-weight:800; font-size:34px; color:var(--gold);">${d}</div><div style="font-size:12px; color:var(--dim);">dias para o simulado</div>`;
+  el.innerHTML = big + `<div style="margin-top:8px; font-weight:700;">${escHtml(a.nome)}</div>
+    <div class="q-meta">${fmtLongDate(a.date)}${a.time ? ' · '+a.time : ''}${cn ? ' · '+escHtml(cn) : ''}</div>`;
+}
+
+// avisos no topo do app
+function weakestDisciplina(concursoId){
+  const agg = list => {
+    const by = {};
+    list.forEach(r => r.disciplinas.forEach(d => { (by[d.label] = by[d.label] || {q:0, a:0}); by[d.label].q += d.questoes; by[d.label].a += d.acertos; }));
+    const arr = Object.keys(by).filter(k => by[k].q > 0).map(k => ({label:k, pct:Math.round(by[k].a/by[k].q*100)})).sort((x, y) => x.pct - y.pct);
+    return arr[0] || null;
+  };
+  const sims = concursoId ? state.simulados.filter(s => s.concursoId === concursoId) : [];
+  return agg(sims) || agg(state.simulados);
+}
+function renderAgendaBanner(){
+  const el = document.getElementById('agendaBanner');
+  if (!el) return;
+  const today = todayStr(), alerts = [];
+  sortAgenda(state.simAgenda.filter(a => !a.done && a.snooze !== today)).forEach(a => {
+    const d = diffDaysStr(a.date, today);
+    if (d === 0 && a.noDia !== false) alerts.push({a, type:'day', d});
+    else if (d > 0 && a.lead > 0 && d <= a.lead) alerts.push({a, type:'week', d});
+  });
+  if (!alerts.length){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.innerHTML = alerts.map(({a, type, d}) => {
+    const when = `${fmtLongDate(a.date)}${a.time ? ' às '+a.time : ''}`;
+    if (type === 'day') return `<div class="ab-item"><div>🎯 <b>Hoje é dia de simulado:</b> ${escHtml(a.nome)}${a.time ? ' às '+a.time : ''}. Boa prova!</div>
+      <div class="ab-actions"><button class="btn small" data-ab="reg" data-id="${a.id}">Registrar resultado</button>
+      <button class="btn ghost small" data-ab="snooze" data-id="${a.id}">Dispensar hoje</button></div></div>`;
+    const w = weakestDisciplina(a.concursoId);
+    const tip = w ? `<div class="q-meta" style="margin-top:4px;">Dica: sua disciplina mais fraca nos simulados é <b>${escHtml(w.label)}</b> (${w.pct}%).</div>` : '';
+    return `<div class="ab-item"><div>📝 <b>Semana de simulado:</b> ${escHtml(a.nome)} — ${d === 1 ? 'amanhã' : 'em '+d+' dias'} (${when}).</div>${tip}
+      <div class="ab-actions"><button class="btn ghost small" data-ab="open" data-id="${a.id}">Ver agenda</button>
+      <button class="btn ghost small" data-ab="snooze" data-id="${a.id}">Dispensar hoje</button></div></div>`;
+  }).join('');
+  el.style.display = 'block';
+  el.querySelectorAll('[data-ab]').forEach(b => b.addEventListener('click', () => {
+    const id = b.dataset.id, act = b.dataset.ab;
+    if (act === 'snooze'){
+      const a = state.simAgenda.find(x => x.id === id);
+      if (a){ a.snooze = todayStr(); saveState(); renderAgendaBanner(); }
+    } else if (act === 'reg'){ goToTab('simulados'); registerFromAgenda(id); }
+    else { goToTab('simulados'); const l = document.getElementById('agendaList'); if (l) l.scrollIntoView({behavior:'smooth', block:'start'}); }
+  }));
+}
+function renderAgendaAll(){
+  renderAgendaList(); renderAgendaBanner(); renderProxSim();
+  if (cons && document.getElementById('consBody')) renderConsistencia();
+}
+document.getElementById('goAgendaBtn').addEventListener('click', () => { goToTab('simulados'); const s = document.getElementById('agFormTitle'); if (s) s.scrollIntoView({behavior:'smooth', block:'start'}); });
+
 // ---------- INSTALAR (PWA) ----------
 let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
@@ -2885,8 +3308,8 @@ function fillManSubject(){
   if (state.subjects.find(s => s.id === current)) sel.value = current;
 }
 function afterStudyChange(){
-  updateHistoryToday(); saveState();
-  drawDonut(); renderRows(); renderPie(); renderBarChart(); renderHistoryCharts(); renderBackupBanner();
+  saveState();
+  drawDonut(); renderRows(); renderPie(); renderBarChart(); renderHistoryCharts(); renderBackupBanner(); renderCycleAge();
 }
 function fmtMin(min){
   const h = Math.floor(min/60), m = min%60;
@@ -2898,8 +3321,9 @@ document.getElementById('addManualBtn').addEventListener('click', () => {
   const minutes = Math.max(0, parseInt(document.getElementById('manH').value)||0) * 60 +
                   Math.max(0, parseInt(document.getElementById('manM').value)||0);
   if (!s || minutes <= 0){ toast('Escolha a matéria e informe o tempo.', 'err'); return; }
-  s.studied += minutes/60;
+  addStudiedHours(s, minutes/60);
   state.manualLog.push({id:'m'+Date.now(), date:todayStr(), subjectId:s.id, minutes});
+  checkCycleComplete();
   afterStudyChange(); renderManualLog();
   toast(`+${fmtMin(minutes)} em ${s.label}`);
 });
@@ -2920,14 +3344,15 @@ function renderManualLog(){
     const m = state.manualLog.find(x => x.id === e.target.dataset.id);
     if (!m) return;
     const s = state.subjects.find(x => x.id === m.subjectId);
-    if (s) s.studied = Math.max(0, s.studied - m.minutes/60);
+    removeStudiedHours(s, m.minutes/60, m.date);
+    state.pomoLog = state.pomoLog.filter(e => !(e.date===m.date && e.subjectId===m.subjectId && Math.abs(e.hours-m.minutes/60)<1e-9));
     state.manualLog = state.manualLog.filter(x => x.id !== m.id);
     afterStudyChange(); renderManualLog();
   }));
 }
 
 // ---------- INIT ----------
-drawDonut(); renderRows(); updateMetaGeralField(); fillSubjectSelect(); renderTime(); updateStats();
+drawDonut(); renderRows(); updateMetaGeralField(); fillSubjectSelect(); renderTime(); updateStats(); renderCycleAge();
 fillDisciplinaSelect(); renderPie(); renderBarChart(); renderQuestoesDoDia();
 renderDiscList(); renderRedacoes(); renderHistoryCharts(); renderSimulados();
 renderCountdown(); renderConcursoList(); fillRankingConcursoFilter();
@@ -2944,6 +3369,8 @@ fillManSubject(); renderManualLog();
 renderBackupInfo(); renderBackupBanner(); renderInstallInfo();
 fillFonteSelects(); renderFontesList();
 fillGoalInputs(); renderConsistencia();
+fillAgendaConcursoSelect(); renderAgendaAll();
+setInterval(() => { renderAgendaBanner(); renderProxSim(); }, 60000);
 </script>
 <script>
 if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
