@@ -23,7 +23,7 @@ try {
   :root{
     --bg:#0E1A2B; --panel:#142438; --panel2:#16283F; --line:rgba(255,255,255,.08);
     --gold:#F2B705; --gold-soft:#F7D154; --text:#F4F6F9; --dim:#A8B3C4;
-    --ok:#4CAF7A; --bad:#F2603D; --goal-line:rgba(255,255,255,.4);
+    --ok:#4CAF7A; --bad:#F2603D; --goal-line:rgba(255,255,255,.4); --on-gold:#1A1300;
     box-sizing:border-box;
     padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
   }
@@ -32,11 +32,11 @@ try {
     --gold:#B8860B; --gold-soft:#8A6D23; --text:#1A2233; --dim:#5B6472;
     --ok:#1F9D5A; --bad:#D9463A; --goal-line:rgba(15,23,42,.35);
   }
-  html[data-theme="light"] body{ background: radial-gradient(circle at 15% -10%, #E9EEF9 0%, var(--bg) 45%); }
+  html[data-theme="light"] body{ background: radial-gradient(circle at 15% -10%, var(--bg-tint, #E9EEF9) 0%, var(--bg) 45%); }
   *{box-sizing:border-box;}
   html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
   body{
-    height:100%; margin:0; background:radial-gradient(circle at 15% -10%, #1A3352 0%, var(--bg) 45%);
+    height:100%; margin:0; background:radial-gradient(circle at 15% -10%, var(--bg-tint, #1A3352) 0%, var(--bg) 45%);
     color:var(--text); font-family:'Inter',sans-serif; padding:16px 14px 40px;
   }
   h1,h2{font-family:'Sora',sans-serif; margin:0;}
@@ -46,7 +46,7 @@ try {
   .tabs::-webkit-scrollbar{display:none;}
   .tab{flex:1 0 auto; white-space:nowrap; text-align:center; padding:11px 12px; border-radius:12px; border:1px solid var(--line);
        background:var(--panel); color:var(--dim); font-weight:700; font-size:12.5px; cursor:pointer;}
-  .tab.active{background:var(--gold); color:#1A1300; border-color:var(--gold);}
+  .tab.active{background:var(--gold); color:var(--on-gold); border-color:var(--gold);}
   .view{display:none;} .view.active{display:block;}
   section{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px 18px; margin-bottom:16px;}
   .lead{color:var(--dim); font-size:13.5px; margin:4px 0 18px;}
@@ -76,12 +76,35 @@ try {
   .add-row{display:flex; gap:8px; margin-top:4px;}
   .add-row input{flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:9px; color:var(--text);
       padding:9px 10px; font-size:13.5px;}
-  .btn{background:var(--gold); color:#1A1300; border:none; border-radius:9px; padding:9px 14px; font-weight:800; cursor:pointer;}
+  .btn{background:var(--gold); color:var(--on-gold); border:none; border-radius:9px; padding:9px 14px; font-weight:800; cursor:pointer;}
   .btn.ghost{background:transparent; border:1px solid var(--line); color:var(--dim);}
   .btn.small{padding:6px 10px; font-size:12px;}
 
   .pomo-card{text-align:center;}
   .pomo-timer{font-family:'Sora',sans-serif; font-size:56px; font-weight:800; color:var(--gold); margin:10px 0;}
+  .pomo-ring{position:relative; width:min(250px,72vw); aspect-ratio:1; margin:14px auto 4px;}
+  .pomo-ring svg{width:100%; height:100%; transform:rotate(-90deg); display:block;}
+  .pr-track{fill:none; stroke:var(--line); stroke-width:10;}
+  .pr-prog{fill:none; stroke:var(--gold); stroke-width:10; stroke-linecap:round; stroke-dasharray:628.32;
+      stroke-dashoffset:628.32; transition:stroke-dashoffset 1s linear, stroke .3s;}
+  .pomo-ring.rest .pr-prog{stroke:var(--ok);}
+  .pomo-ring.running .pr-prog{filter:drop-shadow(0 0 6px var(--gold));}
+  .pomo-ring.rest.running .pr-prog{filter:drop-shadow(0 0 6px var(--ok));}
+  .pr-center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .pomo-ring .pomo-timer{margin:2px 0; font-size:52px; line-height:1.05;}
+  .pomo-ring.rest .pomo-timer{color:var(--ok);}
+  .pr-sub{font-size:11.5px; color:var(--dim); min-height:15px; max-width:70%; text-align:center;}
+  #concursoWatermark{display:none; position:fixed; inset:0; pointer-events:none; z-index:4;
+      background-repeat:no-repeat; background-position:center 58%; background-size:min(72vw, 460px) auto;
+      opacity:.07; filter:grayscale(1) brightness(2.4);}
+  html[data-theme="light"] #concursoWatermark{opacity:.08; filter:none;}
+  .color-pick{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--dim);}
+  .color-pick input{width:40px; height:30px; padding:0; border:1px solid var(--line); border-radius:8px; background:transparent; cursor:pointer;}
+  .logo-prev{width:64px; height:64px; border-radius:12px; border:1px dashed var(--line); display:flex; align-items:center;
+      justify-content:center; overflow:hidden; background:var(--panel2); flex:none; font-size:10px; color:var(--dim); text-align:center;}
+  .logo-prev img{max-width:100%; max-height:100%;}
+  .cc-thumb{width:22px; height:22px; border-radius:6px; object-fit:contain; flex:none; background:var(--panel);}
+  .cc-dot{width:12px; height:12px; border-radius:50%; flex:none;}
   .pomo-mode{font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); font-weight:700;}
   .pomo-controls{display:flex; gap:10px; justify-content:center; margin:16px 0 6px;}
   .pomo-controls button{padding:12px 20px; border-radius:12px; font-size:15px;}
@@ -124,7 +147,7 @@ try {
   table.qtable tr.total td{font-weight:800; color:var(--gold-soft); border-top:1px solid var(--line);}
   .period-btn{flex:1; text-align:center; padding:10px; border-radius:10px; border:1px solid var(--line);
       background:var(--panel2); color:var(--dim); font-weight:700; font-size:13px; cursor:pointer;}
-  .period-btn.active{background:var(--gold); color:#1A1300; border-color:var(--gold);}
+  .period-btn.active{background:var(--gold); color:var(--on-gold); border-color:var(--gold);}
   html[data-theme="light"] .toast{ box-shadow:0 8px 24px rgba(0,0,0,.15); }
   html[data-theme="light"] .modal-overlay{ background:rgba(15,23,42,.45); }
   @media print {
@@ -150,7 +173,7 @@ try {
   .cc-add-row{display:grid; grid-template-columns:1fr 60px 60px 34px; gap:6px; margin-bottom:8px; align-items:center;}
   .cc-add-row input{background:var(--panel2); border:1px solid var(--line); border-radius:7px; color:var(--text);
       padding:7px 8px; font-size:12.5px;}
-  .cc-add-row button{background:var(--gold); color:#1A1300; border:none; border-radius:7px; font-weight:800; cursor:pointer;}
+  .cc-add-row button{background:var(--gold); color:var(--on-gold); border:none; border-radius:7px; font-weight:800; cursor:pointer;}
   .disc-nums{font-size:12px; color:var(--dim); text-align:right;}
   .disc-nums b.ok{color:var(--ok);} .disc-nums b.bad{color:var(--bad);}
   .chev{color:var(--dim); font-size:12px; margin-left:4px;}
@@ -192,7 +215,7 @@ try {
   .rev-chev{font-size:11px; color:var(--dim); margin-left:6px;}
   .rev-badge{font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:20px; flex:none; white-space:nowrap;}
   .rev-badge.late{background:rgba(239,91,77,.18); color:var(--st-red);}
-  .rev-badge.today{background:var(--gold); color:#1A1300;}
+  .rev-badge.today{background:var(--gold); color:var(--on-gold);}
   .rev-badge.soon{background:rgba(124,196,255,.18); color:#7CC4FF;}
   .rev-meta{font-size:12px; color:var(--dim); margin-top:4px;}
   .rev-actions{display:flex; gap:8px; padding:10px 14px 12px;}
@@ -223,7 +246,7 @@ try {
   .cons-tabs{display:flex; gap:6px; margin:14px 0;}
   .ctab{flex:1; text-align:center; padding:9px 4px; border-radius:10px; border:1px solid var(--line); background:var(--panel2);
       color:var(--dim); font-weight:700; font-size:13px; cursor:pointer;}
-  .ctab.active{background:var(--gold); color:#1A1300; border-color:var(--gold);}
+  .ctab.active{background:var(--gold); color:var(--on-gold); border-color:var(--gold);}
   .cons-nav{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
   .cons-title{flex:1; text-align:center; font-family:'Sora',sans-serif; font-weight:700; font-size:15px;}
   .navbtn{width:34px; height:34px; border-radius:10px; border:1px solid var(--line); background:var(--panel2);
@@ -279,7 +302,7 @@ try {
   .agenda-banner .ab-item:last-child{border-bottom:none;}
   .agenda-banner .ab-actions{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;}
   .ag-badge{font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:20px; text-transform:uppercase; letter-spacing:.02em;}
-  .ag-badge.today{background:var(--gold); color:#1A1300;}
+  .ag-badge.today{background:var(--gold); color:var(--on-gold);}
   .ag-badge.soon{background:rgba(124,196,255,.18); color:#7CC4FF;}
   .ag-badge.late{background:rgba(239,91,77,.18); color:var(--st-red);}
   .ag-badge.done{background:rgba(46,194,126,.18); color:var(--st-green);}
@@ -308,7 +331,7 @@ try {
     .view.active{column-count:2; column-gap:20px;}
     .view section{break-inside:avoid; -webkit-column-break-inside:avoid; page-break-inside:avoid;}
     .tab:hover{border-color:var(--gold); color:var(--text);}
-    .tab.active:hover{color:#1A1300;}
+    .tab.active:hover{color:var(--on-gold);}
     .btn:hover{filter:brightness(1.08);}
     .disc-item:hover{border-color:rgba(242,183,5,.45);}
   }
@@ -490,6 +513,11 @@ try {
           <div class="stat"><div class="n" id="syncCodeDisplay" style="letter-spacing:.08em;">------</div><div class="c">Código deste grupo</div></div>
           <div class="stat"><div class="n" id="syncStatus" style="font-size:13px;">—</div><div class="c">Status</div></div>
         </div>
+        <div class="cons-note" id="syncDetail" style="margin:8px 0 0; min-height:14px;"></div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button class="btn small" id="syncPushBtn" style="flex:1;">⬆ Enviar agora</button>
+          <button class="btn ghost small" id="syncPullBtn" style="flex:1;">⬇ Buscar da nuvem</button>
+        </div>
         <p class="cons-note" style="margin:10px 0 0;">Use este mesmo código no outro aparelho, em "Já tenho um código".</p>
         <button class="btn ghost small" id="syncDisconnectBtn" style="margin-top:12px; width:100%; color:var(--bad);">Desconectar</button>
       </div>
@@ -547,8 +575,17 @@ try {
       <h2>Pomodoro</h2>
       <p class="lead">Escolha a matéria e estude com foco — o tempo entra direto no ciclo.</p>
       <select id="subjectSelect"></select>
-      <div class="pomo-mode" id="pomoMode">FOCO</div>
-      <div class="pomo-timer" id="pomoTime">25:00</div>
+      <div class="pomo-ring" id="pomoRing">
+        <svg viewBox="0 0 220 220" aria-hidden="true">
+          <circle class="pr-track" cx="110" cy="110" r="100"></circle>
+          <circle class="pr-prog" id="pomoProg" cx="110" cy="110" r="100"></circle>
+        </svg>
+        <div class="pr-center">
+          <div class="pomo-mode" id="pomoMode">FOCO</div>
+          <div class="pomo-timer" id="pomoTime">25:00</div>
+          <div class="pr-sub" id="pomoSub"></div>
+        </div>
+      </div>
       <div class="pomo-controls">
         <button class="btn" id="startBtn">Iniciar</button>
         <button class="btn ghost" id="pauseBtn">Pausar</button>
@@ -898,6 +935,7 @@ try {
   </div>
 </div>
 
+<div id="concursoWatermark"></div>
 <div id="toast" class="toast"></div>
 <div class="modal-overlay" id="confirmModal" style="z-index:60;">
   <div class="modal-card" style="border-radius:18px 18px 0 0;">
@@ -1022,6 +1060,11 @@ function loadState(rawObj){
   }
   // migração: concursos antigos sem área
   s.concursos.forEach(c => { if (!c.area) c.area = String(c.id).startsWith('cc') ? 'bancaria' : 'outro'; });
+  s.concursos.forEach(c => {
+    if (c.cor === undefined){ const pr = concursoPreset(c.nome); c.cor = pr ? pr.cor : null; c.cor2 = pr ? pr.cor2 : null; }
+    if (c.cor2 === undefined) c.cor2 = null;
+    if (c.logo === undefined) c.logo = null;
+  });
   if (!s.areasSeeded){
     const existentes = s.concursos.map(c=>c.nome);
     defaultConcursos().forEach(c => { if (c.area !== 'bancaria' && !existentes.includes(c.nome)) s.concursos.push(c); });
@@ -1126,6 +1169,7 @@ function applyTheme(theme){
   document.querySelectorAll('#themeToggle .period-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === theme));
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if (metaTheme) metaTheme.content = theme === 'light' ? '#F4F6FA' : '#0E1A2B';
+  applyConcursoTheme();
 }
 document.getElementById('themeToggle').addEventListener('click', e => {
   const b = e.target.closest('[data-theme]');
@@ -1358,15 +1402,32 @@ function tick(){
 }
 function renderTime(){
   const m = Math.floor(remaining/60), s = remaining%60;
-  document.getElementById('pomoTime').textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  const txt = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  document.getElementById('pomoTime').textContent = txt;
+  const total = mode === 'work' ? workSec : restSec;
+  const frac = total > 0 ? Math.min(1, Math.max(0, 1 - remaining/total)) : 0;
+  const prog = document.getElementById('pomoProg');
+  if (prog) prog.style.strokeDashoffset = (628.32 * (1 - frac)).toFixed(2);
+  const ring = document.getElementById('pomoRing');
+  if (ring){ ring.classList.toggle('rest', mode !== 'work'); ring.classList.toggle('running', !!running); }
+  const sub = document.getElementById('pomoSub');
+  if (sub){
+    const sel = document.getElementById('subjectSelect');
+    const subj = state.subjects.find(x => x.id === (sel && sel.value));
+    sub.textContent = mode === 'work' ? (subj ? subj.label : '') : 'Respire e descanse';
+  }
+  document.title = running ? `${txt} · ${mode === 'work' ? 'Foco' : 'Pausa'} — Meu Estudo` : 'Meu Estudo — Concurso';
 }
 document.getElementById('startBtn').addEventListener('click', () => {
   if (running) return;
   running = true;
   timerId = setInterval(tick, 1000);
+  renderTime();
 });
+document.getElementById('subjectSelect').addEventListener('change', () => renderTime());
 document.getElementById('pauseBtn').addEventListener('click', () => {
   running = false; clearInterval(timerId);
+  renderTime();
 });
 document.getElementById('resetBtn').addEventListener('click', () => {
   running = false; clearInterval(timerId);
@@ -1520,6 +1581,7 @@ document.getElementById('suggestHoursBtn').addEventListener('click', () => {
   toast('Metas de horas ajustadas com base no peso das disciplinas deste concurso!');
 });
 function applyActiveConcurso(){
+  applyConcursoTheme();
   const c = state.concursos.find(x=>x.id===state.activeConcursoId);
   document.getElementById('suggestHoursBtn').style.display = (c && c.disciplinas.length>0) ? 'block' : 'none';
   if (c){
@@ -2745,7 +2807,7 @@ function renderConcursoList(){
       const dataTxt = c.data ? new Date(c.data+'T00:00:00').toLocaleDateString('pt-BR') : 'data não definida';
       item.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:4px;">
-          <div class="disc-name">${c.nome}</div>
+          <div class="disc-name" style="display:flex; align-items:center; gap:8px;">${ccThumb(c)}${escHtml(c.nome)}</div>
           <div class="disc-nums" style="text-align:left;">
             <span class="status-badge ${c.status}">${c.status==='pre'?'Pré-edital':'Pós-edital'}</span>
             &nbsp; ${dataTxt}
@@ -2816,6 +2878,26 @@ function renderConcursoModalBody(c){
         <button class="btn ghost small" id="delCcBtn" style="color:var(--bad);">Excluir concurso</button>
       </div>
     </div>
+    <div style="margin-bottom:18px; padding:12px 14px; background:var(--panel2); border:1px solid var(--line); border-radius:12px;">
+      <h2 style="font-size:15px; margin:0 0 4px;">Aparência do concurso</h2>
+      <p class="q-meta" style="margin:0 0 10px;">Quando este for o concurso ativo, o app usa estas cores e a imagem como marca-d'água discreta.</p>
+      <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+        <label class="color-pick">Cor principal <input type="color" id="ccCor" value="${c.cor || '#F2B705'}"></label>
+        <label class="color-pick">Cor do fundo <input type="color" id="ccCor2" value="${c.cor2 || c.cor || '#1A3352'}"></label>
+        <button class="btn ghost small" id="ccCorReset" type="button">Cores padrão do app</button>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center; margin-top:12px;">
+        <div class="logo-prev">${c.logo ? `<img src="${c.logo}" alt="">` : 'Sem imagem'}</div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <button class="btn ghost small" id="ccLogoBtn" type="button">${c.logo ? 'Trocar imagem' : 'Enviar imagem / logo'}</button>
+          ${c.logo ? '<button class="btn ghost small" id="ccLogoDel" type="button" style="color:var(--bad);">Remover imagem</button>' : ''}
+        </div>
+        <input type="file" id="ccLogoFile" accept="image/*" style="display:none;">
+      </div>
+      ${state.activeConcursoId === c.id
+        ? '<div class="q-meta" style="margin-top:10px; color:var(--gold-soft);">✓ Este é o concurso ativo</div>'
+        : '<button class="btn small" id="ccSetActive" type="button" style="margin-top:12px;">Usar como concurso ativo</button>'}
+    </div>
     ${renderConcursoPerformanceBlock(c)}
     <h2 style="font-size:15px; margin-bottom:8px;">Estrutura da prova</h2>
     <table class="qtable" style="margin-bottom:10px;">
@@ -2872,6 +2954,29 @@ function renderConcursoModalBody(c){
   document.getElementById('editCcBtn').addEventListener('click', () => {
     document.getElementById('concursoModal').classList.remove('open');
     startEditConcurso(c.id);
+  });
+  const afterLookChange = () => { saveState(); applyConcursoTheme(); renderConcursoList(); };
+  document.getElementById('ccCor').addEventListener('input', e => { c.cor = e.target.value; afterLookChange(); });
+  document.getElementById('ccCor2').addEventListener('input', e => { c.cor2 = e.target.value; afterLookChange(); });
+  document.getElementById('ccCorReset').addEventListener('click', () => { c.cor = null; c.cor2 = null; afterLookChange(); renderConcursoModalBody(c); });
+  document.getElementById('ccLogoBtn').addEventListener('click', () => document.getElementById('ccLogoFile').click());
+  document.getElementById('ccLogoFile').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      c.logo = await shrinkImage(file, 220);
+      afterLookChange(); renderConcursoModalBody(c);
+      toast('Imagem salva!');
+    } catch(err){ toast('Não foi possível ler essa imagem.', 'err'); }
+  });
+  const delLogo = document.getElementById('ccLogoDel');
+  if (delLogo) delLogo.addEventListener('click', () => { c.logo = null; afterLookChange(); renderConcursoModalBody(c); });
+  const setAct = document.getElementById('ccSetActive');
+  if (setAct) setAct.addEventListener('click', () => {
+    state.activeConcursoId = c.id; saveState();
+    document.getElementById('activeConcursoSelect').value = c.id;
+    applyActiveConcurso(); renderConcursoModalBody(c);
+    toast(`${c.nome} agora é o concurso ativo.`);
   });
   document.getElementById('delCcBtn').addEventListener('click', () => {
     document.getElementById('concursoModal').classList.remove('open');
@@ -3908,20 +4013,54 @@ const FIREBASE_CONFIG = {
   appId: "1:28837461382:web:354474aecd0cff2fc9c007"
 };
 let syncDb = null, syncAuthReady = null, syncUnsub = null, syncPushTimer = null;
-let syncApplyingRemote = false, lastPushedJson = null;
+let syncApplyingRemote = false, lastPushedJson = null, lastAppliedJson = null;
 
+function syncErrorText(e){
+  const code = (e && (e.code || e.message)) ? String(e.code || e.message) : 'desconhecido';
+  const map = {
+    'permission-denied': 'Sem permissão: as regras do Firestore não foram publicadas (ou estão diferentes).',
+    'auth/operation-not-allowed': 'Login anônimo desativado no Firebase (Authentication → Método de login → Anônimo).',
+    'auth/admin-restricted-operation': 'Login anônimo desativado no Firebase (Authentication → Método de login → Anônimo).',
+    'auth/unauthorized-domain': 'Domínio não autorizado (Authentication → Configurações → Domínios autorizados).',
+    'auth/network-request-failed': 'Sem conexão com a internet.',
+    'unavailable': 'Sem conexão com o servidor agora.',
+    'failed-precondition': 'Banco Firestore não está criado/ativo neste projeto.',
+    'not-found': 'Banco Firestore não encontrado (crie em Firestore Database).'
+  };
+  for (const k in map){ if (code.includes(k)) return map[k] + ' [' + code + ']'; }
+  return 'Erro: ' + code;
+}
+function setSyncDetail(text, isErr){
+  const el = document.getElementById('syncDetail');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.color = isErr ? 'var(--bad)' : '';
+}
+function syncFail(e, prefix){
+  console.error(e);
+  setSyncStatus('Erro ao sincronizar', true);
+  setSyncDetail(syncErrorText(e), true);
+}
+function syncMarkOk(msg){
+  const t = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  setSyncStatus(msg || 'Sincronizado');
+  setSyncDetail('Última sincronização: ' + t);
+}
 function syncInitFirebase(){
-  if (typeof firebase === 'undefined') return false;
+  if (typeof firebase === 'undefined'){
+    setSyncStatus('SDK não carregou', true);
+    setSyncDetail('O Firebase não carregou: sem internet, bloqueado por extensão, ou você está dentro do link do Claude (use o app do GitHub Pages).', true);
+    return false;
+  }
   try {
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     syncDb = firebase.firestore();
     if (!syncAuthReady){
-      syncAuthReady = firebase.auth().signInAnonymously().catch(err => {
-        console.error(err); setSyncStatus('Erro ao conectar', true);
-      });
+      syncAuthReady = firebase.auth().signInAnonymously().catch(err => { syncAuthReady = null; syncFail(err); throw err; });
+      syncAuthReady.catch(() => {});
     }
     return true;
-  } catch(e){ console.error(e); return false; }
+  } catch(e){ syncFail(e); return false; }
 }
 function genSyncCode(){
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem O/0/I/1 (fácil de confundir)
@@ -3941,25 +4080,40 @@ function renderSyncUI(){
   document.getElementById('syncConnected').style.display = connected ? 'block' : 'none';
   if (connected) document.getElementById('syncCodeDisplay').textContent = state.syncCode;
 }
+function syncPayloadJson(){
+  const payload = {...state};
+  delete payload.syncCode; delete payload.syncEnabled;
+  return JSON.stringify(payload);
+}
 async function syncPushNow(){
-  if (!state.syncCode || !syncDb) return;
+  if (!state.syncCode || !syncDb) return false;
   try {
     await syncAuthReady;
-    const payload = {...state};
-    delete payload.syncCode; delete payload.syncEnabled;
-    const json = JSON.stringify(payload);
+    const json = syncPayloadJson();
+    if (json.length > 950000){ setSyncStatus('Dados grandes demais', true); setSyncDetail('Reduza/remova imagens dos concursos (limite do banco: ~1 MB).', true); return false; }
     lastPushedJson = json;
     await syncDb.collection('syncs').doc(state.syncCode).set({
       data: json, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    setSyncStatus('Sincronizado agora');
-  } catch(e){ console.error(e); setSyncStatus('Erro ao sincronizar', true); }
+    syncMarkOk('Enviado');
+    return true;
+  } catch(e){ syncFail(e); return false; }
 }
 function scheduleCloudPush(){
   if (!state.syncCode) return;
   clearTimeout(syncPushTimer);
   setSyncStatus('Sincronizando…');
-  syncPushTimer = setTimeout(syncPushNow, 1500);
+  syncPushTimer = setTimeout(() => { syncPushTimer = null; syncPushNow(); }, 1500);
+}
+function applyRemoteJson(json, code){
+  const parsed = JSON.parse(json);
+  syncApplyingRemote = true;
+  try {
+    state = loadState({...parsed, syncCode: code, syncEnabled: true});
+    lastAppliedJson = json;
+    saveState();
+    refreshAll();
+  } finally { syncApplyingRemote = false; }
 }
 function syncListen(code){
   if (!syncDb) return;
@@ -3967,17 +4121,35 @@ function syncListen(code){
   syncUnsub = syncDb.collection('syncs').doc(code).onSnapshot(snap => {
     if (!snap.exists) return;
     const remote = snap.data();
-    if (!remote || !remote.data || remote.data === lastPushedJson) return; // eco da própria escrita
-    try {
-      const parsed = JSON.parse(remote.data);
-      syncApplyingRemote = true;
-      state = loadState({...parsed, syncCode: code, syncEnabled: true});
-      saveState();
-      refreshAll();
-      setSyncStatus('Atualizado de outro aparelho');
-    } catch(e){ console.error(e); }
-    finally { syncApplyingRemote = false; }
-  }, err => { console.error(err); setSyncStatus('Erro ao sincronizar', true); });
+    if (!remote || !remote.data || remote.data === lastPushedJson || remote.data === lastAppliedJson) return;
+    if (syncPushTimer) return; // há mudanças locais ainda não enviadas: não sobrescrever
+    try { applyRemoteJson(remote.data, code); syncMarkOk('Atualizado de outro aparelho'); }
+    catch(e){ syncFail(e); }
+  }, err => syncFail(err));
+}
+async function syncStart(code){
+  try { await syncAuthReady; } catch(e){ return; }
+  syncListen(code);
+  syncPullNow(true);
+}
+// Busca a versão da nuvem diretamente do servidor (útil ao voltar para o app no celular).
+async function syncPullNow(silent){
+  if (!state.syncCode || !syncDb) return;
+  try {
+    await syncAuthReady;
+    const snap = await syncDb.collection('syncs').doc(state.syncCode).get({source:'server'});
+    if (!snap.exists || !snap.data().data){
+      if (!silent) toast('Ainda não há dados na nuvem para este código.', 'err');
+      return;
+    }
+    const json = snap.data().data;
+    if (json === lastPushedJson || json === lastAppliedJson || json === syncPayloadJson()){ syncMarkOk('Já está atualizado'); if (!silent) toast('Este aparelho já está igual à nuvem.'); return; }
+    if (syncPushTimer) return;
+    if (silent){ applyRemoteJson(json, state.syncCode); syncMarkOk('Atualizado da nuvem'); }
+    else askConfirm('Trazer os dados da nuvem para este aparelho? Isso substitui o que está aqui.', () => {
+      try { applyRemoteJson(json, state.syncCode); syncMarkOk('Atualizado da nuvem'); toast('Dados da nuvem carregados.'); } catch(e){ syncFail(e); }
+    });
+  } catch(e){ syncFail(e); if (!silent) toast('Não foi possível buscar da nuvem. Veja o detalhe em vermelho.', 'err'); }
 }
 async function syncCreate(){
   if (!syncInitFirebase()){ toast('Não foi possível carregar a sincronização agora. Verifique sua internet e tente de novo.', 'err'); return; }
@@ -3985,9 +4157,9 @@ async function syncCreate(){
   state.syncCode = code; state.syncEnabled = true;
   saveState(); renderSyncUI();
   setSyncStatus('Criando…');
-  await syncPushNow();
-  syncListen(code);
-  toast(`Código criado: ${code}. Anote para conectar o outro aparelho.`);
+  const ok = await syncPushNow();
+  if (ok){ syncListen(code); toast(`Código criado: ${code}. Anote para conectar o outro aparelho.`); }
+  else toast('O código foi criado, mas o envio falhou. Veja o detalhe em vermelho.', 'err');
 }
 async function syncJoin(codeRaw){
   const code = (codeRaw||'').trim().toUpperCase();
@@ -3995,26 +4167,24 @@ async function syncJoin(codeRaw){
   if (!syncInitFirebase()){ toast('Não foi possível carregar a sincronização agora. Verifique sua internet e tente de novo.', 'err'); return; }
   try {
     await syncAuthReady;
-    setSyncStatus('Conectando…');
-    const snap = await syncDb.collection('syncs').doc(code).get();
+    const snap = await syncDb.collection('syncs').doc(code).get({source:'server'});
     const finishJoin = importRemote => {
       if (importRemote && snap.exists && snap.data().data){
-        const parsed = JSON.parse(snap.data().data);
-        state = loadState({...parsed, syncCode: code, syncEnabled: true});
+        applyRemoteJson(snap.data().data, code);
       } else {
         state.syncCode = code; state.syncEnabled = true;
+        saveState();
       }
-      saveState(); refreshAll(); renderSyncUI();
-      syncListen(code);
-      syncPushNow();
+      renderSyncUI(); syncListen(code);
+      if (!importRemote) syncPushNow(); else syncMarkOk('Conectado');
       toast('Conectado! Os dados vão sincronizar automaticamente.');
     };
     if (snap.exists && snap.data().data){
       askConfirm('Já existem dados salvos nesse código. Importar esses dados para este aparelho agora? (os dois lados continuam sincronizados depois)', () => finishJoin(true));
     } else {
-      finishJoin(false);
+      askConfirm('Esse código ainda não tem dados na nuvem. Conectar mesmo assim e enviar os dados DESTE aparelho?', () => finishJoin(false));
     }
-  } catch(e){ console.error(e); toast('Não foi possível conectar. Confira o código e sua internet.', 'err'); }
+  } catch(e){ syncFail(e); toast('Não foi possível conectar: ' + syncErrorText(e), 'err'); }
 }
 function syncDisconnect(){
   if (syncUnsub){ syncUnsub(); syncUnsub = null; }
@@ -4025,9 +4195,102 @@ function syncDisconnect(){
 document.getElementById('syncCreateBtn').addEventListener('click', syncCreate);
 document.getElementById('syncJoinBtn').addEventListener('click', () => syncJoin(document.getElementById('syncJoinInput').value));
 document.getElementById('syncJoinInput').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); document.getElementById('syncJoinBtn').click(); } });
+document.getElementById('syncPushBtn').addEventListener('click', async () => {
+  if (!syncDb && !syncInitFirebase()){ toast('O Firebase não carregou. Veja o detalhe em vermelho.', 'err'); return; }
+  clearTimeout(syncPushTimer); syncPushTimer = null;
+  setSyncStatus('Enviando…');
+  const ok = await syncPushNow();
+  toast(ok ? 'Dados enviados para a nuvem.' : 'Falha ao enviar. Veja o detalhe em vermelho.', ok ? undefined : 'err');
+});
+document.getElementById('syncPullBtn').addEventListener('click', () => {
+  if (!syncDb && !syncInitFirebase()){ toast('O Firebase não carregou. Veja o detalhe em vermelho.', 'err'); return; }
+  syncPullNow(false);
+});
 document.getElementById('syncDisconnectBtn').addEventListener('click', () => {
   askConfirm('Desconectar a sincronização neste aparelho? Os dados já salvos na nuvem continuam lá, e você pode reconectar com o mesmo código.', syncDisconnect);
 });
+// Ao sair do app, envia na hora o que estiver pendente; ao voltar, busca a versão mais nova da nuvem.
+document.addEventListener('visibilitychange', () => {
+  if (!state.syncCode || !syncDb) return;
+  if (document.visibilityState === 'hidden'){
+    if (syncPushTimer){ clearTimeout(syncPushTimer); syncPushTimer = null; syncPushNow(); }
+  } else {
+    syncPullNow(true);
+  }
+});
+
+// ---------- TEMA DO CONCURSO ATIVO (cores + marca-d'água) ----------
+// Cores aproximadas das instituições mais conhecidas; todas podem ser editadas no próprio concurso.
+function concursoPreset(nome){
+  const n = String(nome || '').toLowerCase();
+  if (n.includes('banco do brasil')) return {cor:'#F8D117', cor2:'#2B4FB3'};
+  if (n.includes('caixa')) return {cor:'#F39200', cor2:'#005CA9'};
+  if (n.includes('correios')) return {cor:'#FFD400', cor2:'#00416B'};
+  if (n.includes('banrisul')) return {cor:'#0A6CC2', cor2:'#004C99'};
+  return null;
+}
+function hexToRgb(h){ const v = h.replace('#',''); return [0,2,4].map(i => parseInt(v.substr(i,2),16)); }
+function rgbToHex(r){ return '#' + r.map(x => Math.round(Math.max(0,Math.min(255,x))).toString(16).padStart(2,'0')).join(''); }
+function mixHex(a, b, t){ const A = hexToRgb(a), B = hexToRgb(b); return rgbToHex(A.map((x,i) => x + (B[i]-x)*t)); }
+function lumHex(h){
+  const c = hexToRgb(h).map(v => { v/=255; return v <= .03928 ? v/12.92 : Math.pow((v+.055)/1.055, 2.4); });
+  return .2126*c[0] + .7152*c[1] + .0722*c[2];
+}
+function adjustUntil(hex, toward, ok){
+  for (let t = 0; t <= 1.0001; t += .05){ const c = mixHex(hex, toward, t); if (ok(lumHex(c))) return c; }
+  return toward;
+}
+function applyConcursoTheme(){
+  const root = document.documentElement;
+  const wm = document.getElementById('concursoWatermark');
+  const c = (state && state.activeConcursoId) ? state.concursos.find(x => x.id === state.activeConcursoId) : null;
+  const props = ['--gold','--gold-soft','--on-gold','--bg-tint'];
+  if (!c || !c.cor) props.forEach(p => root.style.removeProperty(p));
+  if (c && c.cor){
+    const light = state.theme === 'light';
+    let gold = c.cor;
+    if (!light && lumHex(gold) < .12) gold = mixHex(gold, '#FFFFFF', .3);
+    if (light && lumHex(gold) > .75) gold = mixHex(gold, '#000000', .25);
+    const goldSoft = light ? adjustUntil(c.cor, '#000000', l => l <= .18) : adjustUntil(c.cor, '#FFFFFF', l => l >= .45);
+    const onGold = lumHex(gold) > .45 ? '#1A1300' : '#FFFFFF';
+    const tint = mixHex(c.cor2 || c.cor, light ? '#F4F6FA' : '#0E1A2B', light ? .8 : .72);
+    root.style.setProperty('--gold', gold);
+    root.style.setProperty('--gold-soft', goldSoft);
+    root.style.setProperty('--on-gold', onGold);
+    root.style.setProperty('--bg-tint', tint);
+  }
+  if (wm){
+    if (c && c.logo){ wm.style.backgroundImage = `url("${c.logo}")`; wm.style.display = 'block'; }
+    else { wm.style.display = 'none'; wm.style.backgroundImage = ''; }
+  }
+}
+function ccThumb(c){
+  if (c.logo) return `<img class="cc-thumb" src="${c.logo}" alt="">`;
+  if (c.cor) return `<span class="cc-dot" style="background:${c.cor}"></span>`;
+  return '';
+}
+// reduz a imagem enviada (máx. ~220px) para ocupar pouco espaço no aparelho e na sincronização
+function shrinkImage(file, max){
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, max / Math.max(img.width || max, img.height || max));
+        const w = Math.max(1, Math.round((img.width || max) * k)), h = Math.max(1, Math.round((img.height || max) * k));
+        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        let url = cv.toDataURL('image/webp', .85);
+        if (!url.startsWith('data:image/webp')) url = cv.toDataURL('image/png');
+        resolve(url);
+      };
+      img.onerror = reject;
+      img.src = fr.result;
+    };
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  });
+}
 
 // ---------- INSTALAR (PWA) ----------
 let deferredInstallPrompt = null;
@@ -4146,7 +4409,7 @@ fillAgendaConcursoSelect(); renderAgendaAll();
 renderReportBanner();
 renderSyncUI();
 if (state.syncCode && state.syncEnabled){
-  if (syncInitFirebase()) syncListen(state.syncCode);
+  if (syncInitFirebase()) syncStart(state.syncCode);
 }
 setInterval(() => { renderAgendaBanner(); renderProxSim(); renderReportBanner(); }, 60000);
 </script>
