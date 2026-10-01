@@ -23,7 +23,7 @@ self.addEventListener('fetch', e => {
         return res;
       }).catch(() => caches.match(req, {ignoreSearch:true}).then(hit => hit || caches.match('index.html')))
     );
-  } else if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com'){
+  } else if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com' || url.hostname === 'cdn.jsdelivr.net'){
     // fontes: cache primeiro
     e.respondWith(
       caches.match(req).then(hit => hit || fetch(req).then(res => {

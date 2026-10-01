@@ -11,16 +11,28 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Meu Estudo">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+try {
+  var __st = JSON.parse(localStorage.getItem('estudo_app_state_v1')||'{}');
+  if (__st.theme === 'light') document.documentElement.setAttribute('data-theme','light');
+} catch(e){}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0E1A2B; --panel:#142438; --panel2:#16283F; --line:rgba(255,255,255,.08);
     --gold:#F2B705; --gold-soft:#F7D154; --text:#F4F6F9; --dim:#A8B3C4;
-    --ok:#4CAF7A; --bad:#F2603D;
+    --ok:#4CAF7A; --bad:#F2603D; --goal-line:rgba(255,255,255,.4);
     box-sizing:border-box;
     padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
   }
+  :root[data-theme="light"]{
+    --bg:#F4F6FA; --panel:#FFFFFF; --panel2:#F0F2F7; --line:rgba(15,23,42,.10);
+    --gold:#B8860B; --gold-soft:#8A6D23; --text:#1A2233; --dim:#5B6472;
+    --ok:#1F9D5A; --bad:#D9463A; --goal-line:rgba(15,23,42,.35);
+  }
+  html[data-theme="light"] body{ background: radial-gradient(circle at 15% -10%, #E9EEF9 0%, var(--bg) 45%); }
   *{box-sizing:border-box;}
   html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
   body{
@@ -58,7 +70,7 @@
   .reorder-btns{display:flex; flex-direction:column; gap:1px; flex:none;}
   .reorder-x{background:transparent; border:1px solid var(--line); color:var(--dim); border-radius:4px;
       font-size:9px; line-height:1; padding:2px 4px; cursor:pointer;}
-  .progress{height:6px; border-radius:4px; background:rgba(255,255,255,.08); margin-top:8px; overflow:hidden;}
+  .progress{height:6px; border-radius:4px; background:var(--line); margin-top:8px; overflow:hidden;}
   .progress-fill{height:100%; border-radius:4px; transition:width .3s;}
   .row-fine{font-size:11px; color:var(--dim); margin-top:5px;}
   .add-row{display:flex; gap:8px; margin-top:4px;}
@@ -87,10 +99,10 @@
 
   .bar-row{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
   .bar-label{width:92px; font-size:12px; color:var(--dim); flex:none; text-align:right;}
-  .bar-track{flex:1; height:16px; border-radius:8px; background:rgba(255,255,255,.06); overflow:hidden;}
+  .bar-track{flex:1; height:16px; border-radius:8px; background:var(--line); overflow:hidden;}
   .bar-fill{height:100%; border-radius:8px; transition:width .3s;}
   .bar-pct{width:38px; font-size:12px; font-weight:700; color:var(--text); flex:none;}
-  .stack-track{flex:1; height:16px; border-radius:8px; background:rgba(255,255,255,.06); overflow:hidden;}
+  .stack-track{flex:1; height:16px; border-radius:8px; background:var(--line); overflow:hidden;}
   .stack-fill{height:100%; display:flex;}
   .stack-track .seg-ok{background:var(--ok); height:100%;}
   .stack-track .seg-bad{background:var(--bad); height:100%;}
@@ -110,6 +122,20 @@
   table.qtable td{padding:9px 4px; border-bottom:1px solid var(--line); vertical-align:top;}
   table.qtable td.num{text-align:center; font-weight:700;}
   table.qtable tr.total td{font-weight:800; color:var(--gold-soft); border-top:1px solid var(--line);}
+  .period-btn{flex:1; text-align:center; padding:10px; border-radius:10px; border:1px solid var(--line);
+      background:var(--panel2); color:var(--dim); font-weight:700; font-size:13px; cursor:pointer;}
+  .period-btn.active{background:var(--gold); color:#1A1300; border-color:var(--gold);}
+  html[data-theme="light"] .toast{ box-shadow:0 8px 24px rgba(0,0,0,.15); }
+  html[data-theme="light"] .modal-overlay{ background:rgba(15,23,42,.45); }
+  @media print {
+    body *{ visibility:hidden; }
+    #reportPrintArea, #reportPrintArea *{ visibility:visible; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    #reportPrintArea{ position:absolute; left:0; top:0; width:100%; background:#fff; color:#000; padding:10px; }
+    #reportPrintArea .bar-label, #reportPrintArea .cons-note, #reportPrintArea .q-meta,
+    #reportPrintArea .stat .c, #reportPrintArea h2{ color:#333 !important; }
+    #reportPrintArea .n, #reportPrintArea .bar-pct, #reportPrintArea .stack-total{ color:#000 !important; }
+    #reportPrintArea .stat, #reportPrintArea .bar-track, #reportPrintArea .stack-track{ background:#eee !important; border-color:#ccc !important; }
+  }
   .q-meta{color:var(--dim); font-size:11px; margin-top:2px;}
   .del-btn{background:transparent; border:none; color:var(--bad); font-size:16px; cursor:pointer; padding:0 4px;}
 
@@ -141,7 +167,7 @@
   .assunto-row .aname{font-size:13px; font-weight:600; margin-bottom:6px;}
   .qbar-row{display:flex; align-items:center; gap:8px; margin-top:4px;}
   .qbar-label{width:52px; font-size:11px; color:var(--dim); flex:none;}
-  .qbar-track{flex:1; height:12px; border-radius:6px; background:rgba(255,255,255,.06); overflow:hidden;}
+  .qbar-track{flex:1; height:12px; border-radius:6px; background:var(--line); overflow:hidden;}
   .qbar-fill{height:100%; border-radius:6px;}
   .qbar-val{width:22px; font-size:11px; font-weight:700; text-align:right; flex:none;}
 
@@ -155,6 +181,25 @@
   .red-item .red-actions button{background:transparent; border:1px solid var(--line); color:var(--dim);
       border-radius:7px; padding:4px 10px; font-size:11.5px; cursor:pointer;}
   .red-item .red-actions button.del{color:var(--bad);}
+  .pomo-log-row{display:flex; gap:8px; margin-bottom:8px;}
+  .pomo-log-row input{flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:9px; color:var(--text);
+      padding:9px 10px; font-size:13.5px;}
+  .pomo-log-row button{background:transparent; border:none; color:var(--bad); font-size:16px; cursor:pointer; padding:0 4px; flex:none;}
+  .rev-slot{background:var(--panel2); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden;}
+  .rev-head{padding:12px 14px 4px; cursor:pointer;}
+  .rev-top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .rev-name{font-weight:700; font-size:14px;}
+  .rev-chev{font-size:11px; color:var(--dim); margin-left:6px;}
+  .rev-badge{font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:20px; flex:none; white-space:nowrap;}
+  .rev-badge.late{background:rgba(239,91,77,.18); color:var(--st-red);}
+  .rev-badge.today{background:var(--gold); color:#1A1300;}
+  .rev-badge.soon{background:rgba(124,196,255,.18); color:#7CC4FF;}
+  .rev-meta{font-size:12px; color:var(--dim); margin-top:4px;}
+  .rev-actions{display:flex; gap:8px; padding:10px 14px 12px;}
+  .rev-detail{display:none; padding:0 14px 14px; border-top:1px solid var(--line);}
+  .rev-detail.open{display:block; padding-top:10px;}
+  .rev-interval-row{display:flex; justify-content:space-between; font-size:12px; padding:5px 0; border-bottom:1px dashed var(--line);}
+  .rev-interval-row:last-child{border-bottom:none;}
   .toast{position:fixed; left:50%; bottom:calc(22px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%) translateY(20px);
       background:var(--panel2); color:var(--text); border:1px solid var(--line); border-left:3px solid var(--ok);
       padding:11px 16px; border-radius:12px; font-size:13px; max-width:88vw; z-index:80; opacity:0; pointer-events:none;
@@ -169,11 +214,12 @@
   details summary{cursor:pointer; font-size:12.5px; color:var(--dim);}
 
   :root{ --st-green:#2EC27E; --st-yellow:#F2B705; --st-red:#EF5B4D; --st-none:#26364D; }
+  :root[data-theme="light"]{ --st-green:#1F9D5A; --st-yellow:#B8860B; --st-red:#D9463A; --st-none:#E3E7EE; }
   .st-green{background:var(--st-green); color:#052515;}
   .st-yellow{background:var(--st-yellow); color:#2a1d00;}
   .st-red{background:var(--st-red); color:#fff;}
   .st-none{background:var(--st-none); color:var(--dim);}
-  .st-future{background:rgba(255,255,255,.04); color:var(--dim); opacity:.5;}
+  .st-future{background:var(--line); color:var(--dim); opacity:.5;}
   .cons-tabs{display:flex; gap:6px; margin:14px 0;}
   .ctab{flex:1; text-align:center; padding:9px 4px; border-radius:10px; border:1px solid var(--line); background:var(--panel2);
       color:var(--dim); font-weight:700; font-size:13px; cursor:pointer;}
@@ -195,7 +241,7 @@
   .cons-sum .cs-n{font-family:'Sora',sans-serif; font-weight:800; font-size:17px;}
   .cons-sum .cs-c{font-size:11px; color:var(--dim);}
   .ring{width:76px; height:76px; border-radius:50%; position:relative; display:flex; align-items:center; justify-content:center;
-      background:conic-gradient(var(--st-green) calc(var(--p) * 1%), rgba(255,255,255,.1) 0);}
+      background:conic-gradient(var(--st-green) calc(var(--p) * 1%), var(--line) 0);}
   .ring::before{content:''; position:absolute; inset:8px; background:var(--panel2); border-radius:50%;}
   .ring span{position:relative; font-family:'Sora',sans-serif; font-weight:800; font-size:15px; text-align:center; line-height:1.1;}
   .ring small{display:block; font-size:9px; color:var(--dim); font-weight:700;}
@@ -208,9 +254,9 @@
   .wk{display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:16px;}
   .wk-col{display:flex; flex-direction:column; align-items:center; gap:4px;}
   .wk-track{position:relative; width:100%; height:110px; display:flex; align-items:flex-end; justify-content:center;
-      background:rgba(255,255,255,.03); border-radius:8px;}
+      background:var(--line); border-radius:8px;}
   .wk-bar{width:62%; border-radius:6px 6px 2px 2px;}
-  .wk-goal{position:absolute; left:0; right:0; border-top:2px dashed rgba(255,255,255,.4);}
+  .wk-goal{position:absolute; left:0; right:0; border-top:2px dashed var(--goal-line);}
   .wk-val{font-size:10.5px; font-weight:700;}
   .wk-day{font-size:11px; color:var(--dim); text-align:center; line-height:1.15;}
   .wk-day small{font-size:9.5px;}
@@ -222,7 +268,7 @@
   .heat-grid{display:grid; grid-template-rows:repeat(7,var(--cs)); grid-auto-flow:column; grid-auto-columns:var(--cs); gap:var(--gap);}
   .hc{width:var(--cs); height:var(--cs); border-radius:3px; cursor:pointer;}
   .hc.st-future{opacity:.3;}
-  .dist-bar{display:flex; height:16px; border-radius:8px; overflow:hidden; background:rgba(255,255,255,.06); margin:6px 0 4px;}
+  .dist-bar{display:flex; height:16px; border-radius:8px; overflow:hidden; background:var(--line); margin:6px 0 4px;}
   .cons-stat2{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px;}
   .cons-stat2 .stat{padding:12px 8px;}
   .cons-note{font-size:11.5px; color:var(--dim); line-height:1.5;}
@@ -287,7 +333,9 @@
     <div class="tab" data-view="concursos">Concursos</div>
   </div>
   <div id="agendaBanner" class="agenda-banner" style="display:none;"></div>
+  <div id="revBanner" class="agenda-banner" style="display:none;"></div>
   <div id="backupBanner" class="backup-banner" style="display:none;"></div>
+  <div id="reportBanner" class="backup-banner" style="display:none;"></div>
 
   <div class="view active" id="view-ciclo">
     <section>
@@ -340,6 +388,17 @@
     </section>
 
     <section>
+      <h2>Ciclos completos</h2>
+      <p class="lead">Toda vez que você bate as metas de todas as matérias, conta um ciclo aqui.</p>
+      <div class="stat-row">
+        <div class="stat"><div class="n" id="statCiclosTotal">0</div><div class="c">Ciclos completos</div></div>
+        <div class="stat"><div class="n" id="statCiclosMedia">—</div><div class="c">Por mês (média)</div></div>
+        <div class="stat"><div class="n" id="statCiclosDias">—</div><div class="c">Dias por ciclo (média)</div></div>
+      </div>
+      <div id="cicloHistList" style="margin-top:14px;"></div>
+    </section>
+
+    <section>
       <h2>Questões por disciplina</h2>
       <p class="lead">Toque em uma disciplina para ver o detalhe por assunto. Filtre pela fonte de onde vieram as questões.</p>
       <select id="discFonteFilter"></select>
@@ -385,18 +444,56 @@
     </section>
 
     <section>
-      <h2>Revisão espaçada</h2>
+      <h2 id="revFormTitle">Revisão espaçada</h2>
       <p class="lead">Registre o que estudou e o app agenda as revisões para 1, 7 e 30 dias depois.</p>
       <div class="q-form">
         <div class="full"><label>Assunto estudado</label><input id="revAssunto" placeholder="Ex: Crase"></div>
         <div><label>Disciplina</label><select id="revDisciplina"></select></div>
         <div><label>Estudado em</label><input id="revData" type="date"></div>
-        <div class="full"><button class="btn" id="addRevBtn" style="width:100%;">Agendar revisões</button></div>
+        <div class="full"><label>Forma de revisão (opcional)</label><select id="revForma"></select></div>
+        <div class="full" style="display:flex; gap:8px;">
+          <input id="revNovaForma" placeholder="Nova forma (ex: Flashcards)" style="flex:1;">
+          <button class="btn ghost small" id="revNovaFormaBtn" type="button">Adicionar</button>
+        </div>
+        <div class="full" style="display:flex; gap:8px;">
+          <button class="btn" id="addRevBtn" style="flex:1;">Agendar revisões</button>
+          <button class="btn ghost" id="cancelRevBtn" style="display:none;">Cancelar</button>
+        </div>
       </div>
       <h2 style="font-size:15px; margin:4px 0 8px;">Revisar hoje</h2>
       <div id="revHoje"></div>
       <h2 style="font-size:15px; margin:16px 0 8px;">Próximas revisões</h2>
       <div id="revProximas"></div>
+    </section>
+
+    <section>
+      <h2>Aparência</h2>
+      <p class="lead">Escolha o tema do app.</p>
+      <div style="display:flex; gap:8px;" id="themeToggle">
+        <div class="period-btn active" data-theme="dark">🌙 Escuro</div>
+        <div class="period-btn" data-theme="light">☀️ Claro</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Sincronização entre aparelhos</h2>
+      <p class="lead">Conecte o PC e o celular com um código — os dados sincronizam sozinhos, em segundos.</p>
+      <div id="syncDisconnected">
+        <button class="btn" id="syncCreateBtn" style="width:100%; margin-bottom:12px;">Criar código neste aparelho</button>
+        <div style="display:flex; gap:8px;">
+          <input id="syncJoinInput" placeholder="Já tenho um código" maxlength="6" style="flex:1; text-transform:uppercase;">
+          <button class="btn ghost" id="syncJoinBtn">Conectar</button>
+        </div>
+      </div>
+      <div id="syncConnected" style="display:none;">
+        <div class="stat-row" style="margin-top:0;">
+          <div class="stat"><div class="n" id="syncCodeDisplay" style="letter-spacing:.08em;">------</div><div class="c">Código deste grupo</div></div>
+          <div class="stat"><div class="n" id="syncStatus" style="font-size:13px;">—</div><div class="c">Status</div></div>
+        </div>
+        <p class="cons-note" style="margin:10px 0 0;">Use este mesmo código no outro aparelho, em "Já tenho um código".</p>
+        <button class="btn ghost small" id="syncDisconnectBtn" style="margin-top:12px; width:100%; color:var(--bad);">Desconectar</button>
+      </div>
+      <p class="cons-note" style="margin-top:12px;">Dentro do link do Claude a sincronização fica bloqueada pelas regras de segurança daqui — funciona no app publicado (GitHub Pages).</p>
     </section>
 
     <section>
@@ -429,6 +526,20 @@
         <button class="btn ghost" id="copyLinkBtn" style="flex:1;">Copiar link do app</button>
       </div>
     </section>
+
+    <section>
+      <h2>Relatório de estudos</h2>
+      <p class="lead">Gere um resumo com as principais estatísticas do período, pronto para imprimir ou salvar como PDF.</p>
+      <div style="display:flex; gap:8px;">
+        <div class="period-btn active" id="reportPeriodSemana" data-period="semana">Semanal</div>
+        <div class="period-btn" id="reportPeriodMes" data-period="mes">Mensal</div>
+      </div>
+      <div id="reportMonthPicker" style="display:none; margin-top:12px;">
+        <label style="font-size:11px; color:var(--dim); text-transform:uppercase; display:block; margin-bottom:6px;">Mês</label>
+        <input type="month" id="reportMonthInput">
+      </div>
+      <button class="btn" id="generateReportBtn" style="width:100%; margin-top:14px;">Gerar relatório</button>
+    </section>
   </div>
 
   <div class="view" id="view-pomo">
@@ -451,6 +562,27 @@
         <div class="stat"><div class="n" id="statPomos">0</div><div class="c">Pomodoros hoje</div></div>
         <div class="stat"><div class="n" id="statMinutes">0min</div><div class="c">Foco hoje</div></div>
       </div>
+      <div id="pomoLogPanel" style="display:none; margin-top:18px; padding-top:16px; border-top:1px solid var(--line); text-align:left;">
+        <div style="font-weight:700; font-size:13.5px; margin-bottom:2px;">Sessão concluída! Registrar o assunto? (opcional)</div>
+        <p class="cons-note" style="margin:0 0 12px;">Matéria: <b id="pomoLogSubject" style="color:var(--text);"></b></p>
+        <div id="pomoLogRows"></div>
+        <button class="btn ghost small" id="pomoLogAddRow" type="button">+ Adicionar assunto</button>
+        <label style="display:flex; align-items:center; gap:8px; margin:14px 0; font-size:12.5px; color:var(--text);">
+          <input type="checkbox" id="pomoLogRevisao" style="width:auto;"> Também agendar revisão espaçada (1, 7 e 30 dias) para esses assuntos
+        </label>
+        <div id="pomoLogFormaWrap" style="display:none; margin-bottom:14px;">
+          <label style="font-size:11px; color:var(--dim); text-transform:uppercase; display:block; margin-bottom:6px;">Forma de revisão (opcional)</label>
+          <select id="pomoLogForma"></select>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <input id="pomoLogNovaForma" placeholder="Nova forma (ex: Flashcards)" style="flex:1;">
+            <button class="btn ghost small" id="pomoLogNovaFormaBtn" type="button">Adicionar</button>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" id="pomoLogSave" style="flex:1;">Salvar</button>
+          <button class="btn ghost" id="pomoLogSkip" style="flex:1;">Agora não</button>
+        </div>
+      </div>
     </section>
 
     <section>
@@ -461,6 +593,27 @@
         <div><label>Horas</label><input id="manH" type="number" min="0" value="0"></div>
         <div><label>Minutos</label><input id="manM" type="number" min="0" max="59" value="30"></div>
         <div class="full"><button class="btn" id="addManualBtn" style="width:100%;">Adicionar tempo</button></div>
+      </div>
+      <div id="manLogPanel" style="display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--line); text-align:left;">
+        <div style="font-weight:700; font-size:13.5px; margin-bottom:2px;">Tempo registrado! Registrar o assunto? (opcional)</div>
+        <p class="cons-note" style="margin:0 0 12px;">Matéria: <b id="manLogSubject" style="color:var(--text);"></b></p>
+        <div id="manLogRows"></div>
+        <button class="btn ghost small" id="manLogAddRow" type="button">+ Adicionar assunto</button>
+        <label style="display:flex; align-items:center; gap:8px; margin:14px 0; font-size:12.5px; color:var(--text);">
+          <input type="checkbox" id="manLogRevisao" style="width:auto;"> Também agendar revisão espaçada (1, 7 e 30 dias) para esses assuntos
+        </label>
+        <div id="manLogFormaWrap" style="display:none; margin-bottom:14px;">
+          <label style="font-size:11px; color:var(--dim); text-transform:uppercase; display:block; margin-bottom:6px;">Forma de revisão (opcional)</label>
+          <select id="manLogForma"></select>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <input id="manLogNovaForma" placeholder="Nova forma (ex: Flashcards)" style="flex:1;">
+            <button class="btn ghost small" id="manLogNovaFormaBtn" type="button">Adicionar</button>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" id="manLogSave" style="flex:1;">Salvar</button>
+          <button class="btn ghost" id="manLogSkip" style="flex:1;">Agora não</button>
+        </div>
       </div>
       <h2 style="font-size:15px; margin:4px 0 8px;">Registros de hoje</h2>
       <div id="manualLog"></div>
@@ -503,6 +656,17 @@
         <thead><tr><th>Assunto / Disciplina / Fonte</th><th class="num">Questões</th><th class="num">Acertos</th><th></th></tr></thead>
         <tbody id="qBody"></tbody>
       </table>
+      <div id="qSuggestPanel" style="display:none; margin-top:14px; padding:12px 14px; background:var(--panel2); border:1px solid var(--line); border-radius:12px;">
+        <p id="qSuggestText" style="margin:0 0 10px; font-size:13px;"></p>
+        <div style="margin-bottom:10px;">
+          <label style="font-size:11px; color:var(--dim); text-transform:uppercase; display:block; margin-bottom:6px;">Forma de revisão (opcional)</label>
+          <select id="qSuggestForma"></select>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn small" id="qSuggestYes">Agendar revisão</button>
+          <button class="btn ghost small" id="qSuggestNo">Não, obrigado</button>
+        </div>
+      </div>
       <button class="btn ghost small" id="clearQuestoesBtn" style="margin-top:14px; color:var(--bad);">Limpar todas as questões registradas</button>
     </section>
 
@@ -534,6 +698,12 @@
         <option value="12" selected>Últimos 12 meses</option>
       </select>
       <div id="monthQuestoesChart" style="margin-top:14px;"></div>
+    </section>
+
+    <section>
+      <h2>Desempenho por forma de revisão</h2>
+      <p class="lead">Cruza os assuntos revisados com o resultado nas questões avulsas daquele assunto.</p>
+      <div id="formaStatsList"></div>
     </section>
   </div>
 
@@ -714,6 +884,10 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-app-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-auth-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-firestore-compat.js"></script>
+
 <div class="modal-overlay" id="simModal">
   <div class="modal-card">
     <div class="modal-head">
@@ -735,6 +909,20 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="reportModal">
+  <div class="modal-card" style="max-width:640px;">
+    <div class="modal-head">
+      <h2 id="reportModalTitle">Relatório de estudos</h2>
+      <button class="modal-close" id="reportModalClose">✕</button>
+    </div>
+    <div id="reportPrintArea"></div>
+    <div style="display:flex; gap:8px; margin-top:16px;">
+      <button class="btn" id="reportPrintBtn" style="flex:1;">🖨️ Imprimir / Salvar PDF</button>
+      <button class="btn ghost" id="reportCloseBtn2" style="flex:1;">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="concursoModal">
   <div class="modal-card">
     <div class="modal-head">
@@ -752,6 +940,7 @@ const todayStr = () => {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 };
 const DEFAULT_FONTES = ['Notebook LM','Gemini','YouTube','QConcursos'];
+const DEFAULT_FORMAS = ['Questões','Mapa mental','Resumo ativo'];
 const APP_URL = 'https://claude.ai/artifact/X3rhJ6Wxqek7JmH2SFYA6R';
 
 // alert()/confirm() são bloqueados dentro do artefato: usamos avisos e confirmação próprios
@@ -803,6 +992,11 @@ function loadState(rawObj){
   }
   if (!s.cycleStart) s.cycleStart = s.date;
   if (!Array.isArray(s.pomoLog)) s.pomoLog = [];
+  if (!Array.isArray(s.cycleHistory)) s.cycleHistory = [];
+  if (s.reportDismissedMonth === undefined) s.reportDismissedMonth = null;
+  if (!s.theme) s.theme = 'dark';
+  if (s.syncCode === undefined) s.syncCode = null;
+  if (s.syncEnabled === undefined) s.syncEnabled = false;
   if (!s.questoes) s.questoes = [];
   if (!s.redacoes) s.redacoes = [];
   if (!s.history) s.history = {};
@@ -815,6 +1009,8 @@ function loadState(rawObj){
   if (!Array.isArray(s.goalHistory) || s.goalHistory.length === 0) s.goalHistory = [{from:'0000-00-00', h:1, q:10}];
   if (s.goalSet === undefined) s.goalSet = false;
   if (!Array.isArray(s.fontes) || s.fontes.length === 0) s.fontes = [...DEFAULT_FONTES];
+  if (!Array.isArray(s.formasRevisao) || s.formasRevisao.length === 0) s.formasRevisao = [...DEFAULT_FORMAS];
+  s.revisoes.forEach(r => { if (r.forma === undefined) r.forma = ''; });
   s.questoes.forEach(q => { if (q.fonte && !s.fontes.includes(q.fonte)) s.fontes.push(q.fonte); });
   if (!s.manualLog) s.manualLog = [];
   if (s.lastBackup === undefined) s.lastBackup = null;
@@ -885,11 +1081,36 @@ function checkCycleComplete(){
   if (!comMeta.every(s => s.studied >= s.goal - 1e-9)) return;
   const dias = Math.max(0, diffDaysStr(todayStr(), state.cycleStart));
   toast(`🎉 Ciclo completo em ${dias} dia${dias===1?'':'s'}! Todas as metas foram batidas — começando um novo ciclo.`);
+  state.cycleHistory.push({completedAt: todayStr(), days: dias});
   state.subjects.forEach(s => { s.studied = 0; });
   state.cycleStart = todayStr();
 }
+function renderCicloStats(){
+  const totalEl = document.getElementById('statCiclosTotal');
+  if (!totalEl) return;
+  const hist = state.cycleHistory;
+  totalEl.textContent = hist.length;
+  const mediaEl = document.getElementById('statCiclosMedia');
+  const diasEl = document.getElementById('statCiclosDias');
+  const listEl = document.getElementById('cicloHistList');
+  if (hist.length === 0){
+    mediaEl.textContent = '—'; diasEl.textContent = '—';
+    listEl.innerHTML = '<p class="lead" style="margin:0;">Nenhum ciclo completo ainda. Continue estudando!</p>';
+    return;
+  }
+  const avgDays = hist.reduce((a,c)=>a+c.days,0)/hist.length;
+  const firstStart = shiftDate(hist[0].completedAt, -hist[0].days);
+  const monthsElapsed = Math.max(diffDaysStr(todayStr(), firstStart)/30.44, 1/30.44);
+  mediaEl.textContent = (hist.length/monthsElapsed).toFixed(1);
+  diasEl.textContent = avgDays.toFixed(0);
+  listEl.innerHTML = hist.slice().reverse().slice(0,8).map(c => {
+    const fmt = new Date(c.completedAt+'T12:00:00').toLocaleDateString('pt-BR');
+    return `<div class="disc-item" style="cursor:default;"><div class="disc-name">Ciclo concluído em ${fmt}</div><div class="disc-nums">${c.days} dia${c.days===1?'':'s'}</div></div>`;
+  }).join('');
+}
 function saveState(){
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){}
+  if (state.syncCode && !syncApplyingRemote) scheduleCloudPush();
 }
 function defaultSubjects(){
   const palette = ['#F2B705','#F7D154','#F0A324','#F08A24','#F2603D','#8FB6DE','#4C7FB8','#2F5C93'];
@@ -898,6 +1119,22 @@ function defaultSubjects(){
   return names.map((n,i) => ({id:'s'+i, label:n, goal:1.5, studied:0, color:palette[i%palette.length]}));
 }
 let state = loadState();
+
+// ---------- TEMA (claro/escuro) ----------
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : '');
+  document.querySelectorAll('#themeToggle .period-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === theme));
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) metaTheme.content = theme === 'light' ? '#F4F6FA' : '#0E1A2B';
+}
+document.getElementById('themeToggle').addEventListener('click', e => {
+  const b = e.target.closest('[data-theme]');
+  if (!b) return;
+  state.theme = b.dataset.theme;
+  saveState();
+  applyTheme(state.theme);
+});
+applyTheme(state.theme);
 
 // ---------- TABS ----------
 document.querySelectorAll('.tab').forEach(t => {
@@ -911,7 +1148,7 @@ document.querySelectorAll('.tab').forEach(t => {
     if (t.dataset.view === 'ciclo'){ renderRevisoes(); renderBackupInfo(); }
     if (t.dataset.view === 'historico'){ renderConsistencia(); }
     if (t.scrollIntoView) t.scrollIntoView({inline:'center', block:'nearest', behavior:'smooth'});
-    if (t.dataset.view === 'resumo') { renderPie(); renderBarChart(); renderQuestoesDoDia(); fillDisciplinaSelect(); renderHistoryCharts(); }
+    if (t.dataset.view === 'resumo') { renderPie(); renderBarChart(); renderQuestoesDoDia(); fillDisciplinaSelect(); renderHistoryCharts(); renderFormaStats(); }
     if (t.dataset.view === 'simulados') {
       fillAgendaConcursoSelect(); renderAgendaList();
       fillSimConcursoOptions();
@@ -1006,6 +1243,7 @@ function renderCycleAge(){
 }
 function drawDonut(){
   renderCycleAge();
+  renderCicloStats();
   const total = totalGoal();
   const svg = document.getElementById('donut');
   svg.innerHTML = '';
@@ -1019,7 +1257,7 @@ function drawDonut(){
     const path=document.createElementNS('http://www.w3.org/2000/svg','path');
     path.setAttribute('d', `M ${p1.x} ${p1.y} A ${rO} ${rO} 0 ${large} 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${rI} ${rI} 0 ${large} 0 ${p4.x} ${p4.y} Z`);
     path.setAttribute('fill', s.color);
-    path.setAttribute('stroke', '#0E1A2B'); path.setAttribute('stroke-width','2');
+    path.setAttribute('stroke', 'var(--panel)'); path.setAttribute('stroke-width','2');
     svg.appendChild(path);
     angle=end;
   });
@@ -1108,6 +1346,7 @@ function tick(){
       state.pomosToday++; state.minutesToday += Math.round(workSec/60);
       checkCycleComplete();
       saveState(); drawDonut(); renderRows(); updateStats();
+      if (s) showLogPanel('pomo', s);
       mode='rest'; remaining=restSec;
     } else {
       mode='work'; remaining=workSec;
@@ -1147,6 +1386,69 @@ function updateStats(){
   document.getElementById('statPomos').textContent = state.pomosToday;
   document.getElementById('statMinutes').textContent = state.minutesToday + 'min';
 }
+
+// ---------- REGISTRO DE ASSUNTO APÓS UMA SESSÃO DE ESTUDO (Pomodoro e registro manual) ----------
+let pendingPomoLog = null, pendingManLog = null;
+function studyLogRow(prefix, value){
+  const row = document.createElement('div');
+  row.className = 'pomo-log-row';
+  row.innerHTML = `<input class="${prefix}Assunto" placeholder="Ex: Crase" value="${value ? escHtml(value) : ''}">
+    <button type="button" title="Remover">✕</button>`;
+  row.querySelector('button').addEventListener('click', () => {
+    if (document.querySelectorAll('#'+prefix+'LogRows .pomo-log-row').length > 1) row.remove();
+    else row.querySelector('input').value = '';
+  });
+  return row;
+}
+function showLogPanel(prefix, subject){
+  const pend = {subjectId: subject.id, subjectLabel: subject.label, date: todayStr()};
+  if (prefix === 'pomo') pendingPomoLog = pend; else pendingManLog = pend;
+  document.getElementById(prefix+'LogSubject').textContent = subject.label;
+  const rows = document.getElementById(prefix+'LogRows');
+  rows.innerHTML = '';
+  rows.appendChild(studyLogRow(prefix, ''));
+  document.getElementById(prefix+'LogRevisao').checked = false;
+  document.getElementById(prefix+'LogFormaWrap').style.display = 'none';
+  fillFormaSelects();
+  document.getElementById(prefix+'LogForma').value = '';
+  document.getElementById(prefix+'LogNovaForma').value = '';
+  document.getElementById(prefix+'LogPanel').style.display = 'block';
+}
+function hideLogPanel(prefix){
+  document.getElementById(prefix+'LogPanel').style.display = 'none';
+  if (prefix === 'pomo') pendingPomoLog = null; else pendingManLog = null;
+}
+function saveLogPanel(prefix){
+  const pend = prefix === 'pomo' ? pendingPomoLog : pendingManLog;
+  if (!pend){ hideLogPanel(prefix); return; }
+  const assuntos = [...document.querySelectorAll('#'+prefix+'LogRows .'+prefix+'Assunto')]
+    .map(i => i.value.trim()).filter(Boolean);
+  if (assuntos.length === 0){ hideLogPanel(prefix); return; }
+  const comRevisao = document.getElementById(prefix+'LogRevisao').checked;
+  const forma = document.getElementById(prefix+'LogForma').value || '';
+  if (comRevisao){
+    assuntos.forEach((assunto, i) => {
+      state.revisoes.push({id:'r'+Date.now()+i+prefix, assunto, disciplina: pend.subjectLabel, date: pend.date, forma, done:[false,false,false]});
+    });
+    saveState(); renderRevisoes();
+    toast(assuntos.length > 1 ? `${assuntos.length} assuntos registrados e agendados para revisão!` : 'Assunto registrado e agendado para revisão!');
+  } else {
+    toast(assuntos.length > 1 ? 'Assuntos registrados!' : 'Assunto registrado!');
+  }
+  hideLogPanel(prefix);
+}
+document.getElementById('pomoLogAddRow').addEventListener('click', () => document.getElementById('pomoLogRows').appendChild(studyLogRow('pomo', '')));
+document.getElementById('pomoLogSkip').addEventListener('click', () => hideLogPanel('pomo'));
+document.getElementById('pomoLogSave').addEventListener('click', () => saveLogPanel('pomo'));
+document.getElementById('pomoLogRevisao').addEventListener('change', e => {
+  document.getElementById('pomoLogFormaWrap').style.display = e.target.checked ? 'block' : 'none';
+});
+document.getElementById('manLogAddRow').addEventListener('click', () => document.getElementById('manLogRows').appendChild(studyLogRow('man', '')));
+document.getElementById('manLogSkip').addEventListener('click', () => hideLogPanel('man'));
+document.getElementById('manLogSave').addEventListener('click', () => saveLogPanel('man'));
+document.getElementById('manLogRevisao').addEventListener('change', e => {
+  document.getElementById('manLogFormaWrap').style.display = e.target.checked ? 'block' : 'none';
+});
 
 // ---------- CONTAGEM REGRESSIVA ----------
 document.getElementById('editalStatus').value = state.exam.status;
@@ -1324,6 +1626,41 @@ function removeFonte(name){
   saveState(); fillFonteSelects(); renderFontesList(); renderDiscList();
   toast(`Fonte "${name}" removida da lista. As questões já registradas continuam salvas.`);
 }
+
+// ---------- FORMAS DE REVISÃO (mesmo padrão das fontes) ----------
+function fillFormaSelects(){
+  ['revForma','pomoLogForma','manLogForma','qSuggestForma'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value;
+    fillSelectOptions(sel, state.formasRevisao, 'Nenhuma (opcional)');
+    if (state.formasRevisao.includes(cur)) sel.value = cur;
+  });
+}
+function addForma(raw, targetSelectId){
+  const name = raw.trim();
+  if (!name){ toast('Digite o nome da forma de revisão.', 'err'); return null; }
+  const dup = state.formasRevisao.find(f => f.toLowerCase() === name.toLowerCase());
+  if (dup){ toast(`A forma "${dup}" já existe.`, 'err'); if (targetSelectId) document.getElementById(targetSelectId).value = dup; return dup; }
+  state.formasRevisao.push(name);
+  saveState(); fillFormaSelects();
+  if (targetSelectId) document.getElementById(targetSelectId).value = name;
+  toast(`Forma "${name}" adicionada.`);
+  return name;
+}
+document.getElementById('revNovaFormaBtn').addEventListener('click', () => {
+  const inp = document.getElementById('revNovaForma');
+  if (addForma(inp.value, 'revForma')) inp.value = '';
+});
+document.getElementById('revNovaForma').addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ e.preventDefault(); document.getElementById('revNovaFormaBtn').click(); }
+});
+['pomo','man'].forEach(prefix => {
+  const btn = document.getElementById(prefix+'LogNovaFormaBtn');
+  const inp = document.getElementById(prefix+'LogNovaForma');
+  btn.addEventListener('click', () => { if (addForma(inp.value, prefix+'LogForma')) inp.value = ''; });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); btn.click(); } });
+});
 document.getElementById('discFonteFilter').addEventListener('change', e => {
   discFonteFilter = e.target.value;
   renderDiscList();
@@ -1497,7 +1834,7 @@ function drawRedLine(){
   // axis line
   const axis = document.createElementNS('http://www.w3.org/2000/svg','line');
   axis.setAttribute('x1',padL); axis.setAttribute('y1',H-padB); axis.setAttribute('x2',W-padR); axis.setAttribute('y2',H-padB);
-  axis.setAttribute('stroke','rgba(255,255,255,.15)');
+  axis.setAttribute('stroke','var(--line)');
   svg.appendChild(axis);
 
   let d = '';
@@ -1544,7 +1881,7 @@ function renderPie(){
     const path=document.createElementNS('http://www.w3.org/2000/svg','path');
     path.setAttribute('d', `M ${cx} ${cy} L ${p1.x} ${p1.y} A ${r} ${r} 0 ${large} 1 ${p2.x} ${p2.y} Z`);
     path.setAttribute('fill', s.color);
-    path.setAttribute('stroke', '#0E1A2B'); path.setAttribute('stroke-width','2');
+    path.setAttribute('stroke', 'var(--panel)'); path.setAttribute('stroke-width','2');
     svg.appendChild(path);
     if (sweep > 12){
       const mid = start + sweep/2, lp = polar(cx,cy,r*0.62,mid);
@@ -1603,7 +1940,31 @@ document.getElementById('addQuestaoBtn').addEventListener('click', () => {
   if (!assunto) return;
   state.questoes.push({assunto, disciplina, fonte, questoes, acertos, date: todayStr()});
   document.getElementById('qAssunto').value = '';
-  saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart(); fillFonteSelects(); renderFontesList();
+  saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart(); fillFonteSelects(); renderFontesList(); renderFormaStats();
+  if (questoes > 0){
+    const pct = Math.round(acertos/questoes*100);
+    if (pct < 60){
+      pendingQSuggest = {assunto, disciplina, date: todayStr()};
+      document.getElementById('qSuggestText').textContent = `Desempenho baixo em "${assunto}" (${pct}% de acerto). Agendar revisão espaçada?`;
+      fillFormaSelects();
+      document.getElementById('qSuggestForma').value = '';
+      document.getElementById('qSuggestPanel').style.display = 'block';
+    }
+  }
+});
+let pendingQSuggest = null;
+document.getElementById('qSuggestYes').addEventListener('click', () => {
+  if (!pendingQSuggest) return;
+  const forma = document.getElementById('qSuggestForma').value || '';
+  state.revisoes.push({id:'r'+Date.now(), ...pendingQSuggest, forma, done:[false,false,false]});
+  saveState(); renderRevisoes();
+  toast('Revisão agendada!');
+  document.getElementById('qSuggestPanel').style.display = 'none';
+  pendingQSuggest = null;
+});
+document.getElementById('qSuggestNo').addEventListener('click', () => {
+  document.getElementById('qSuggestPanel').style.display = 'none';
+  pendingQSuggest = null;
 });
 
 document.getElementById('clearQuestoesBtn').addEventListener('click', () => {
@@ -1842,6 +2203,10 @@ function refreshAll(){
   renderManualLog(); renderBackupInfo(); renderBackupBanner();
   fillGoalInputs(); renderConsistencia(); renderCycleAge();
   fillAgendaConcursoSelect(); renderAgendaAll();
+  document.getElementById('reportMonthInput').value = lastNMonthKeys(2)[0];
+  renderReportBanner();
+  applyTheme(state.theme);
+  renderSyncUI();
 }
 function applyImport(text){
   let imported;
@@ -2184,7 +2549,7 @@ function drawSimDisciplinaLine(){
 
   const axis = document.createElementNS('http://www.w3.org/2000/svg','line');
   axis.setAttribute('x1',padL); axis.setAttribute('y1',H-padB); axis.setAttribute('x2',W-padR); axis.setAttribute('y2',H-padB);
-  axis.setAttribute('stroke','rgba(255,255,255,.15)');
+  axis.setAttribute('stroke','var(--line)');
   svg.appendChild(axis);
 
   labels.forEach(label => {
@@ -2273,7 +2638,7 @@ function drawSimLine(){
   const xFor = i => padL + i*xStep;
   const axis = document.createElementNS('http://www.w3.org/2000/svg','line');
   axis.setAttribute('x1',padL); axis.setAttribute('y1',H-padB); axis.setAttribute('x2',W-padR); axis.setAttribute('y2',H-padB);
-  axis.setAttribute('stroke','rgba(255,255,255,.15)');
+  axis.setAttribute('stroke','var(--line)');
   svg.appendChild(axis);
   let d = '';
   pcts.forEach((v,i) => { d += (i===0?'M':'L') + xFor(i) + ' ' + yFor(v) + ' '; });
@@ -2553,53 +2918,199 @@ function fillRevDisciplinaSelect(){
   if (current) sel.value = current;
 }
 document.getElementById('revData').value = todayStr();
+let editingRevisaoId = null;
+function clearRevForm(){
+  document.getElementById('revAssunto').value = '';
+  document.getElementById('revData').value = todayStr();
+  document.getElementById('revForma').value = '';
+  editingRevisaoId = null;
+  document.getElementById('revFormTitle').textContent = 'Revisão espaçada';
+  document.getElementById('addRevBtn').textContent = 'Agendar revisões';
+  document.getElementById('cancelRevBtn').style.display = 'none';
+}
+document.getElementById('cancelRevBtn').addEventListener('click', clearRevForm);
+function startEditRevisao(id){
+  const r = state.revisoes.find(x => x.id === id);
+  if (!r) return;
+  editingRevisaoId = id;
+  fillRevDisciplinaSelect(); fillFormaSelects();
+  document.getElementById('revAssunto').value = r.assunto;
+  document.getElementById('revDisciplina').value = r.disciplina;
+  document.getElementById('revData').value = r.date;
+  document.getElementById('revForma').value = r.forma || '';
+  document.getElementById('revFormTitle').textContent = 'Editando revisão';
+  document.getElementById('addRevBtn').textContent = 'Salvar alteração';
+  document.getElementById('cancelRevBtn').style.display = 'inline-block';
+  document.getElementById('revFormTitle').scrollIntoView({behavior:'smooth', block:'start'});
+}
 document.getElementById('addRevBtn').addEventListener('click', () => {
   const assunto = document.getElementById('revAssunto').value.trim();
   const disciplina = document.getElementById('revDisciplina').value;
   const date = document.getElementById('revData').value || todayStr();
+  const forma = document.getElementById('revForma').value || '';
   if (!assunto) return;
-  state.revisoes.push({id:'r'+Date.now(), assunto, disciplina, date, done:[false,false,false]});
-  document.getElementById('revAssunto').value = '';
-  saveState(); renderRevisoes();
+  if (editingRevisaoId){
+    const r = state.revisoes.find(x => x.id === editingRevisaoId);
+    Object.assign(r, {assunto, disciplina, date, forma});
+    clearRevForm();
+    saveState(); renderRevisoes();
+    toast('Revisão atualizada!');
+  } else {
+    state.revisoes.push({id:'r'+Date.now(), assunto, disciplina, date, forma, done:[false,false,false]});
+    document.getElementById('revAssunto').value = '';
+    document.getElementById('revForma').value = '';
+    saveState(); renderRevisoes();
+    toast('Revisões agendadas!');
+  }
 });
 function renderRevisoes(){
-  fillRevDisciplinaSelect();
+  fillRevDisciplinaSelect(); fillFormaSelects();
   const today = todayStr();
-  const pend = [];
-  state.revisoes.forEach(r => REV_INTERVALS.forEach((n,i) => {
-    if (!r.done[i]) pend.push({r, i, n, due: addDaysStr(r.date, n)});
-  }));
-  const hoje = pend.filter(x => x.due <= today).sort((a,b)=>a.due.localeCompare(b.due));
-  const prox = pend.filter(x => x.due > today).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,8);
-  const hojeEl = document.getElementById('revHoje');
-  const proxEl = document.getElementById('revProximas');
-  hojeEl.innerHTML = hoje.length ? hoje.map(x => {
-    const atraso = diffDaysStr(today, x.due);
-    return `<div class="disc-item" style="cursor:default;">
-      <div><div class="disc-name">${x.r.assunto}</div>
-        <div class="q-meta">${x.r.disciplina} · revisão de ${x.n} dia${x.n>1?'s':''} · ${atraso>0?`<span style="color:var(--bad)">atrasada ${atraso}d</span>`:'para hoje'}</div></div>
-      <div style="display:flex; gap:6px; align-items:center;">
-        <button class="btn small revDone" data-id="${x.r.id}" data-i="${x.i}">Feito</button>
-        <button class="del-btn revDel" data-id="${x.r.id}" title="Remover assunto">✕</button>
-      </div></div>`;
-  }).join('') : '<p class="lead" style="margin:0;">Nenhuma revisão pendente para hoje 🎉</p>';
-  proxEl.innerHTML = prox.length ? prox.map(x => {
-    const d = diffDaysStr(x.due, today);
-    const dataFmt = new Date(x.due+'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
-    return `<div class="disc-item" style="cursor:default;">
-      <div><div class="disc-name">${x.r.assunto}</div>
-        <div class="q-meta">${x.r.disciplina} · revisão de ${x.n} dia${x.n>1?'s':''}</div></div>
-      <div class="disc-nums">${dataFmt} · em ${d}d
-        <button class="del-btn revDel" data-id="${x.r.id}" title="Remover assunto">✕</button></div></div>`;
-  }).join('') : '<p class="lead" style="margin:0;">Nenhuma revisão agendada ainda.</p>';
+  const groups = state.revisoes.map(r => ({r, next: revNextPending(r)})).filter(g => g.next);
+  const hoje = groups.filter(g => g.next.due <= today).sort((a,b)=>a.next.due.localeCompare(b.next.due));
+  const prox = groups.filter(g => g.next.due > today).sort((a,b)=>a.next.due.localeCompare(b.next.due));
+  document.getElementById('revHoje').innerHTML = hoje.length
+    ? hoje.map(g => revSlotHtml(g, today)).join('')
+    : '<p class="lead" style="margin:0;">Nenhuma revisão pendente para hoje 🎉</p>';
+  document.getElementById('revProximas').innerHTML = prox.length
+    ? prox.map(g => revSlotHtml(g, today)).join('')
+    : '<p class="lead" style="margin:0;">Nenhuma revisão agendada ainda.</p>';
+  bindRevSlots();
+  renderRevBanner();
+  renderFormaStats();
+}
+function renderFormaStats(){
+  const el = document.getElementById('formaStatsList');
+  if (!el) return;
+  const assuntoForma = {};
+  state.revisoes.forEach(r => { if (r.forma) assuntoForma[r.assunto] = r.forma; });
+  const byForma = {};
+  state.questoes.forEach(q => {
+    const forma = assuntoForma[q.assunto];
+    if (!forma) return;
+    if (!byForma[forma]) byForma[forma] = {q:0, a:0};
+    byForma[forma].q += q.questoes; byForma[forma].a += q.acertos;
+  });
+  const list = Object.keys(byForma).filter(f => byForma[f].q>0)
+    .map(f => ({forma:f, q:byForma[f].q, a:byForma[f].a, pct: Math.round(byForma[f].a/byForma[f].q*100)}))
+    .sort((a,b) => b.pct-a.pct);
+  if (list.length === 0){
+    el.innerHTML = '<p class="lead" style="margin:0;">Ainda sem dados suficientes — registre revisões com uma forma definida e questões avulsas do mesmo assunto.</p>';
+    return;
+  }
+  const max = Math.max(...list.map(x=>x.q), 1);
+  el.innerHTML = list.map(x => `<div class="bar-row"><div class="bar-label">${escHtml(x.forma)}</div>
+    <div class="bar-track"><div class="bar-fill" style="width:${x.q/max*100}%; background:var(--gold)"></div></div>
+    <div class="bar-pct">${x.pct}%</div></div>`).join('');
+}
+function revNextPending(r){
+  for (let i=0; i<REV_INTERVALS.length; i++){
+    if (!r.done[i]) return {i, n:REV_INTERVALS[i], due: addDaysStr(r.date, REV_INTERVALS[i])};
+  }
+  return null;
+}
+function revSlotHtml({r, next}, today){
+  const atraso = diffDaysStr(today, next.due);
+  const badge = atraso > 0 ? {cls:'late', label:`Atrasada ${atraso}d`} : atraso === 0 ? {cls:'today', label:'Hoje'} : {cls:'soon', label:`Em ${-atraso}d`};
+  const dataFmt = ds => new Date(ds+'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+  const detailRows = REV_INTERVALS.map((n,i) => {
+    const due = addDaysStr(r.date, n);
+    const status = r.done[i]
+      ? `<span style="color:var(--st-green)">✓ feito</span>`
+      : `<span style="${due<=today?'color:var(--st-red)':''}">${due<=today?'pendente':'em '+diffDaysStr(due,today)+'d'} · ${dataFmt(due)}</span>`;
+    return `<div class="rev-interval-row"><span>Revisão de ${n} dia${n>1?'s':''}</span>${status}</div>`;
+  }).join('');
+  return `<div class="rev-slot">
+    <div class="rev-head" data-toggle="${r.id}">
+      <div class="rev-top"><div class="rev-name">${escHtml(r.assunto)}<span class="rev-chev">▾</span></div><span class="rev-badge ${badge.cls}">${badge.label}</span></div>
+      <div class="rev-meta">${escHtml(r.disciplina)} · revisão de ${next.n} dia${next.n>1?'s':''} · ${dataFmt(next.due)}</div>
+    </div>
+    <div class="rev-actions">
+      <button class="btn small revDone" data-id="${r.id}" data-i="${next.i}">Feito</button>
+      <button class="btn ghost small revEdit" data-id="${r.id}">Editar</button>
+      <button class="del-btn revDel" data-id="${r.id}" title="Remover assunto">✕</button>
+    </div>
+    <div class="rev-detail" id="revDetail-${r.id}">
+      <div class="cons-note" style="margin-bottom:8px;">Estudado em ${new Date(r.date+'T12:00:00').toLocaleDateString('pt-BR')}${r.forma ? ` · Forma: <b style="color:var(--text)">${escHtml(r.forma)}</b>` : ''}</div>
+      ${detailRows}
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+        <button class="btn ghost small revIcs" data-id="${r.id}">📅 Calendário</button>
+        <a class="btn ghost small" href="${revGoogleUrl(r, next)}" target="_blank" rel="noopener">Google Agenda</a>
+      </div>
+    </div>
+  </div>`;
+}
+function bindRevSlots(){
+  document.querySelectorAll('#revHoje [data-toggle], #revProximas [data-toggle]').forEach(h => {
+    h.addEventListener('click', () => {
+      const det = document.getElementById('revDetail-'+h.dataset.toggle);
+      const chev = h.querySelector('.rev-chev');
+      const open = det.classList.toggle('open');
+      if (chev) chev.textContent = open ? '▴' : '▾';
+    });
+  });
   document.querySelectorAll('.revDone').forEach(b => b.addEventListener('click', e => {
     const r = state.revisoes.find(x=>x.id===e.target.dataset.id);
     if (r){ r.done[parseInt(e.target.dataset.i)] = true; saveState(); renderRevisoes(); }
   }));
   document.querySelectorAll('.revDel').forEach(b => b.addEventListener('click', e => {
     state.revisoes = state.revisoes.filter(x=>x.id!==e.target.dataset.id);
+    if (editingRevisaoId === e.target.dataset.id) clearRevForm();
     saveState(); renderRevisoes();
   }));
+  document.querySelectorAll('.revEdit').forEach(b => b.addEventListener('click', e => startEditRevisao(e.target.dataset.id)));
+  document.querySelectorAll('.revIcs').forEach(b => b.addEventListener('click', e => {
+    const r = state.revisoes.find(x => x.id === e.target.dataset.id);
+    const next = r && revNextPending(r);
+    if (r && next) downloadRevIcs(r, next);
+  }));
+}
+function revGoogleUrl(r, next){
+  const title = 'Revisão: ' + r.assunto;
+  const details = [r.disciplina, `revisão de ${next.n} dia${next.n>1?'s':''}`, r.forma ? 'Forma: '+r.forma : ''].filter(Boolean).join(' · ');
+  const ymd = next.due.replace(/-/g,''), end = shiftDate(next.due,1).replace(/-/g,'');
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(title) +
+    '&dates=' + ymd + '/' + end + '&details=' + encodeURIComponent(details);
+}
+function downloadRevIcs(r, next){
+  if (window.self !== window.top){ toast('O lembrete no calendário funciona no app instalado (fora do Claude).', 'err'); return; }
+  const title = 'Revisão: ' + r.assunto;
+  const details = [r.disciplina, `revisão de ${next.n} dia${next.n>1?'s':''}`, r.forma ? 'Forma: '+r.forma : ''].filter(Boolean).join(' · ');
+  const ymd = next.due.replace(/-/g,''), end = shiftDate(next.due,1).replace(/-/g,'');
+  const n = new Date();
+  const stamp = n.getUTCFullYear()+pad2(n.getUTCMonth()+1)+pad2(n.getUTCDate())+'T'+pad2(n.getUTCHours())+pad2(n.getUTCMinutes())+pad2(n.getUTCSeconds())+'Z';
+  const L = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Meu Estudo//PT-BR','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',
+    `UID:${r.id}-${next.i}@meu-estudo`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${ymd}`, `DTEND;VALUE=DATE:${end}`,
+    'SUMMARY:' + icsEscape(title)];
+  if (details) L.push('DESCRIPTION:' + icsEscape(details));
+  L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:' + icsEscape('Hoje: ' + title), 'TRIGGER:PT8H', 'END:VALARM');
+  L.push('END:VEVENT','END:VCALENDAR');
+  try {
+    const blob = new Blob([L.map(icsFold).join('\r\n')+'\r\n'], {type:'text/calendar;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = `revisao-${next.due}.ics`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast('Arquivo do calendário gerado. Abra-o para adicionar o lembrete.');
+  } catch(e){ toast('Não foi possível gerar o arquivo do calendário.', 'err'); }
+}
+function renderRevBanner(){
+  const el = document.getElementById('revBanner');
+  if (!el) return;
+  const today = todayStr();
+  const count = state.revisoes.filter(r => { const n = revNextPending(r); return n && n.due <= today; }).length;
+  if (count === 0){ el.style.display = 'none'; el.innerHTML=''; return; }
+  el.innerHTML = `<div class="ab-item" style="border-bottom:none; padding-bottom:0;">
+    <div>📚 Você tem <b>${count}</b> revis${count>1?'ões':'ão'} pendente${count>1?'s':''} para hoje.</div>
+    <div class="ab-actions"><button class="btn small" id="revBannerGo">Ver revisões</button></div>
+  </div>`;
+  el.style.display = 'block';
+  document.getElementById('revBannerGo').addEventListener('click', () => {
+    goToTab('ciclo');
+    const sec = document.getElementById('revHoje');
+    if (sec) sec.scrollIntoView({behavior:'smooth', block:'start'});
+  });
 }
 
 // ---------- METAS DIÁRIAS E CONSISTÊNCIA ----------
@@ -2610,7 +3121,7 @@ const ST_LABEL = {green:'Meta batida', yellow:'Parcial', red:'Abaixo da meta', n
 const ST_SYMBOL = {green:'✓', yellow:'◐', red:'!', none:'', future:''};
 const ST_BADGE = {green:'background:var(--st-green); color:#052515;', yellow:'background:var(--st-yellow); color:#2a1d00;',
                   red:'background:var(--st-red); color:#fff;', none:'background:var(--st-none); color:var(--dim);',
-                  future:'background:rgba(255,255,255,.08); color:var(--dim);'};
+                  future:'background:var(--line); color:var(--dim);'};
 const pad2 = n => String(n).padStart(2,'0');
 function fmtDate(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
 function parseDate(ds){ const [y,m,d] = ds.split('-').map(Number); return new Date(y, m-1, d); }
@@ -3257,6 +3768,267 @@ function renderAgendaAll(){
 }
 document.getElementById('goAgendaBtn').addEventListener('click', () => { goToTab('simulados'); const s = document.getElementById('agFormTitle'); if (s) s.scrollIntoView({behavior:'smooth', block:'start'}); });
 
+
+// ---------- RELATÓRIO DE ESTUDOS ----------
+document.querySelectorAll('#view-ciclo .period-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#view-ciclo .period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('reportMonthPicker').style.display = btn.dataset.period === 'mes' ? 'block' : 'none';
+  });
+});
+document.getElementById('reportMonthInput').value = lastNMonthKeys(2)[0];
+document.getElementById('generateReportBtn').addEventListener('click', () => {
+  const period = document.querySelector('#view-ciclo .period-btn.active').dataset.period;
+  openReport(period, period === 'mes' ? document.getElementById('reportMonthInput').value : null);
+});
+function computeReportStats(start, end){
+  const inRange = ds => ds >= start && ds <= end;
+  let totalHoras = 0, metaHoras = 0;
+  for (let d = start; d <= end; d = shiftDate(d,1)){
+    totalHoras += state.history[d] || 0;
+    metaHoras += goalFor(d).h;
+  }
+  const horasPorId = {};
+  state.pomoLog.forEach(e => { if (inRange(e.date)) horasPorId[e.subjectId] = (horasPorId[e.subjectId]||0) + e.hours; });
+  state.manualLog.forEach(e => { if (inRange(e.date)) horasPorId[e.subjectId] = (horasPorId[e.subjectId]||0) + e.minutes/60; });
+  const horasPorDiscList = state.subjects
+    .map(s => ({label:s.label, color:s.color, h: horasPorId[s.id] || 0}))
+    .filter(x => x.h > 0).sort((a,b) => b.h - a.h);
+  const qPorDisc = {};
+  const addQ = (label, q, a) => { if (!qPorDisc[label]) qPorDisc[label] = {q:0, a:0}; qPorDisc[label].q += q; qPorDisc[label].a += a; };
+  state.questoes.forEach(q => { if (inRange(q.date)) addQ(q.disciplina, q.questoes, q.acertos); });
+  state.simulados.forEach(r => { if (inRange(r.date)) r.disciplinas.forEach(d => addQ(d.label, d.questoes, d.acertos)); });
+  const totalQ = Object.values(qPorDisc).reduce((a,x)=>a+x.q,0);
+  const totalA = Object.values(qPorDisc).reduce((a,x)=>a+x.a,0);
+  const qPorDiscList = Object.keys(qPorDisc).map(l => ({label:l, q:qPorDisc[l].q, a:qPorDisc[l].a,
+    pct: qPorDisc[l].q>0 ? Math.round(qPorDisc[l].a/qPorDisc[l].q*100) : 0})).sort((a,b) => b.q - a.q);
+  const simsStats = state.simulados.filter(r => inRange(r.date)).map(r => {
+    const t = simTotals(r); return {nome:r.nome, date:r.date, pct: t.total>0 ? Math.round(t.acertos/t.total*100) : 0};
+  });
+  const ciclosPeriodo = state.cycleHistory.filter(c => inRange(c.completedAt));
+  const ranking = qPorDiscList.filter(x=>x.q>0).slice().sort((a,b) => a.pct-b.pct).slice(0,3);
+  const revsPeriodo = state.revisoes.filter(r => inRange(r.date)).length;
+  const pendAtuais = state.revisoes.filter(r => revNextPending(r)).length;
+  return {totalHoras, metaHoras, totalQ, totalA, horasPorDiscList, qPorDiscList, simsStats, ciclosPeriodo, ranking, revsPeriodo, pendAtuais};
+}
+function reportHtml(stats, label){
+  const pctHoras = stats.metaHoras>0 ? Math.round(stats.totalHoras/stats.metaHoras*100) : 0;
+  const pctQ = stats.totalQ>0 ? Math.round(stats.totalA/stats.totalQ*100) : 0;
+  const maxH = Math.max(...stats.horasPorDiscList.map(x=>x.h), 0.0001);
+  const maxQ = Math.max(...stats.qPorDiscList.map(x=>x.q), 1);
+  return `
+    <div style="text-align:center;">
+      <div style="font-family:'Sora',sans-serif; font-weight:800; font-size:17px;">${escHtml(label)}</div>
+      <div class="cons-note">Gerado em ${new Date().toLocaleDateString('pt-BR')}</div>
+    </div>
+    <div class="stat-row" style="margin-top:14px;">
+      <div class="stat"><div class="n">${fmtH(stats.totalHoras)}</div><div class="c">de ${fmtH(stats.metaHoras)} de meta (${pctHoras}%)</div></div>
+      <div class="stat"><div class="n">${stats.totalQ}</div><div class="c">questões (${pctQ}% acerto)</div></div>
+      <div class="stat"><div class="n">${stats.simsStats.length}</div><div class="c">simulados</div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="n">${stats.ciclosPeriodo.length}</div><div class="c">ciclos completos</div></div>
+      <div class="stat"><div class="n">${stats.revsPeriodo}</div><div class="c">assuntos p/ revisão</div></div>
+      <div class="stat"><div class="n">${stats.pendAtuais}</div><div class="c">revisões pendentes hoje</div></div>
+    </div>
+    <h2 style="font-size:14px; margin:18px 0 8px;">Horas por disciplina</h2>
+    ${stats.horasPorDiscList.length ? stats.horasPorDiscList.map(x => `
+      <div class="bar-row"><div class="bar-label">${escHtml(x.label)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${x.h/maxH*100}%; background:${x.color}"></div></div>
+        <div class="bar-pct">${fmtH(x.h)}</div></div>`).join('') : '<p class="lead" style="margin:0;">Sem horas registradas no período.</p>'}
+    <h2 style="font-size:14px; margin:18px 0 8px;">Questões por disciplina</h2>
+    ${stats.qPorDiscList.length ? stats.qPorDiscList.map(x => {
+      const erros = x.q-x.a, w = x.q/maxQ*100, ok = x.q>0?x.a/x.q*100:0, bad = x.q>0?erros/x.q*100:0;
+      return `<div class="bar-row"><div class="bar-label">${escHtml(x.label)}</div>
+        <div class="stack-track"><div class="stack-fill" style="width:${w}%;"><div class="seg-ok" style="width:${ok}%"></div><div class="seg-bad" style="width:${bad}%"></div></div></div>
+        <div class="stack-total">${x.q} (${x.pct}%)</div></div>`;
+    }).join('') : '<p class="lead" style="margin:0;">Sem questões registradas no período.</p>'}
+    <h2 style="font-size:14px; margin:18px 0 8px;">Pontos de atenção</h2>
+    ${stats.ranking.length ? stats.ranking.map(x => `<div class="q-meta">${escHtml(x.label)}: ${x.pct}% de acerto (${x.a}/${x.q})</div>`).join('') : '<p class="lead" style="margin:0;">Sem dados suficientes no período.</p>'}
+    ${stats.simsStats.length ? `<h2 style="font-size:14px; margin:18px 0 8px;">Simulados no período</h2>
+      ${stats.simsStats.map(sm => `<div class="q-meta">${escHtml(sm.nome)} — ${fmtDM(sm.date)} · ${sm.pct}%</div>`).join('')}` : ''}
+  `;
+}
+function openReport(period, monthKey){
+  let start, end, label, title;
+  if (period === 'semana'){
+    end = todayStr(); start = shiftDate(end, -6);
+    label = `Semana de ${fmtDM(start)} a ${fmtDM(end)}`; title = 'Relatório semanal';
+  } else {
+    const mk = monthKey || lastNMonthKeys(2)[0];
+    const [y, m] = mk.split('-').map(Number);
+    start = `${mk}-01`; end = fmtDate(new Date(y, m, 0));
+    label = monthLabel(mk).replace('/', '/20'); title = 'Relatório mensal';
+  }
+  const stats = computeReportStats(start, end);
+  document.getElementById('reportModalTitle').textContent = title;
+  document.getElementById('reportPrintArea').innerHTML = reportHtml(stats, label);
+  document.getElementById('reportModal').classList.add('open');
+}
+document.getElementById('reportModalClose').addEventListener('click', () => document.getElementById('reportModal').classList.remove('open'));
+document.getElementById('reportCloseBtn2').addEventListener('click', () => document.getElementById('reportModal').classList.remove('open'));
+document.getElementById('reportModal').addEventListener('click', e => { if (e.target.id === 'reportModal') e.currentTarget.classList.remove('open'); });
+document.getElementById('reportPrintBtn').addEventListener('click', () => window.print());
+
+function renderReportBanner(){
+  const el = document.getElementById('reportBanner');
+  if (!el) return;
+  if (new Date().getDate() !== 1){ el.style.display = 'none'; return; }
+  const prevKey = lastNMonthKeys(2)[0];
+  if (state.reportDismissedMonth === prevKey){ el.style.display = 'none'; return; }
+  el.innerHTML = `<div>📊 Um novo mês começou! Que tal gerar o relatório de estudos de <b>${monthLabel(prevKey)}</b>?</div>
+    <div class="bb-actions">
+      <button class="btn small" id="rbGenerate">Gerar relatório</button>
+      <button class="btn ghost small" id="rbDismiss">Dispensar</button>
+    </div>`;
+  el.style.display = 'block';
+  document.getElementById('rbGenerate').addEventListener('click', () => {
+    state.reportDismissedMonth = prevKey; saveState(); el.style.display = 'none';
+    document.querySelectorAll('#view-ciclo .period-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('reportPeriodMes').classList.add('active');
+    document.getElementById('reportMonthPicker').style.display = 'block';
+    document.getElementById('reportMonthInput').value = prevKey;
+    goToTab('ciclo');
+    openReport('mes', prevKey);
+  });
+  document.getElementById('rbDismiss').addEventListener('click', () => {
+    state.reportDismissedMonth = prevKey; saveState(); el.style.display = 'none';
+  });
+}
+
+
+// ---------- SINCRONIZAÇÃO ENTRE APARELHOS (Firebase) ----------
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBNaMQVhDKxavUMqrTlHLS6-TlVKT2KB8U",
+  authDomain: "meu-estudo-sync.firebaseapp.com",
+  projectId: "meu-estudo-sync",
+  storageBucket: "meu-estudo-sync.firebasestorage.app",
+  messagingSenderId: "28837461382",
+  appId: "1:28837461382:web:354474aecd0cff2fc9c007"
+};
+let syncDb = null, syncAuthReady = null, syncUnsub = null, syncPushTimer = null;
+let syncApplyingRemote = false, lastPushedJson = null;
+
+function syncInitFirebase(){
+  if (typeof firebase === 'undefined') return false;
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    syncDb = firebase.firestore();
+    if (!syncAuthReady){
+      syncAuthReady = firebase.auth().signInAnonymously().catch(err => {
+        console.error(err); setSyncStatus('Erro ao conectar', true);
+      });
+    }
+    return true;
+  } catch(e){ console.error(e); return false; }
+}
+function genSyncCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem O/0/I/1 (fácil de confundir)
+  let c = '';
+  for (let i=0;i<6;i++) c += chars[Math.floor(Math.random()*chars.length)];
+  return c;
+}
+function setSyncStatus(text, isErr){
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = isErr ? 'var(--bad)' : 'var(--gold-soft)';
+}
+function renderSyncUI(){
+  const connected = !!state.syncCode;
+  document.getElementById('syncDisconnected').style.display = connected ? 'none' : 'block';
+  document.getElementById('syncConnected').style.display = connected ? 'block' : 'none';
+  if (connected) document.getElementById('syncCodeDisplay').textContent = state.syncCode;
+}
+async function syncPushNow(){
+  if (!state.syncCode || !syncDb) return;
+  try {
+    await syncAuthReady;
+    const payload = {...state};
+    delete payload.syncCode; delete payload.syncEnabled;
+    const json = JSON.stringify(payload);
+    lastPushedJson = json;
+    await syncDb.collection('syncs').doc(state.syncCode).set({
+      data: json, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    setSyncStatus('Sincronizado agora');
+  } catch(e){ console.error(e); setSyncStatus('Erro ao sincronizar', true); }
+}
+function scheduleCloudPush(){
+  if (!state.syncCode) return;
+  clearTimeout(syncPushTimer);
+  setSyncStatus('Sincronizando…');
+  syncPushTimer = setTimeout(syncPushNow, 1500);
+}
+function syncListen(code){
+  if (!syncDb) return;
+  if (syncUnsub) syncUnsub();
+  syncUnsub = syncDb.collection('syncs').doc(code).onSnapshot(snap => {
+    if (!snap.exists) return;
+    const remote = snap.data();
+    if (!remote || !remote.data || remote.data === lastPushedJson) return; // eco da própria escrita
+    try {
+      const parsed = JSON.parse(remote.data);
+      syncApplyingRemote = true;
+      state = loadState({...parsed, syncCode: code, syncEnabled: true});
+      saveState();
+      refreshAll();
+      setSyncStatus('Atualizado de outro aparelho');
+    } catch(e){ console.error(e); }
+    finally { syncApplyingRemote = false; }
+  }, err => { console.error(err); setSyncStatus('Erro ao sincronizar', true); });
+}
+async function syncCreate(){
+  if (!syncInitFirebase()){ toast('Não foi possível carregar a sincronização agora. Verifique sua internet e tente de novo.', 'err'); return; }
+  const code = genSyncCode();
+  state.syncCode = code; state.syncEnabled = true;
+  saveState(); renderSyncUI();
+  setSyncStatus('Criando…');
+  await syncPushNow();
+  syncListen(code);
+  toast(`Código criado: ${code}. Anote para conectar o outro aparelho.`);
+}
+async function syncJoin(codeRaw){
+  const code = (codeRaw||'').trim().toUpperCase();
+  if (code.length < 4){ toast('Digite o código do outro aparelho.', 'err'); return; }
+  if (!syncInitFirebase()){ toast('Não foi possível carregar a sincronização agora. Verifique sua internet e tente de novo.', 'err'); return; }
+  try {
+    await syncAuthReady;
+    setSyncStatus('Conectando…');
+    const snap = await syncDb.collection('syncs').doc(code).get();
+    const finishJoin = importRemote => {
+      if (importRemote && snap.exists && snap.data().data){
+        const parsed = JSON.parse(snap.data().data);
+        state = loadState({...parsed, syncCode: code, syncEnabled: true});
+      } else {
+        state.syncCode = code; state.syncEnabled = true;
+      }
+      saveState(); refreshAll(); renderSyncUI();
+      syncListen(code);
+      syncPushNow();
+      toast('Conectado! Os dados vão sincronizar automaticamente.');
+    };
+    if (snap.exists && snap.data().data){
+      askConfirm('Já existem dados salvos nesse código. Importar esses dados para este aparelho agora? (os dois lados continuam sincronizados depois)', () => finishJoin(true));
+    } else {
+      finishJoin(false);
+    }
+  } catch(e){ console.error(e); toast('Não foi possível conectar. Confira o código e sua internet.', 'err'); }
+}
+function syncDisconnect(){
+  if (syncUnsub){ syncUnsub(); syncUnsub = null; }
+  state.syncCode = null; state.syncEnabled = false;
+  saveState(); renderSyncUI();
+  toast('Sincronização desligada neste aparelho. Os dados já salvos na nuvem continuam lá.');
+}
+document.getElementById('syncCreateBtn').addEventListener('click', syncCreate);
+document.getElementById('syncJoinBtn').addEventListener('click', () => syncJoin(document.getElementById('syncJoinInput').value));
+document.getElementById('syncJoinInput').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); document.getElementById('syncJoinBtn').click(); } });
+document.getElementById('syncDisconnectBtn').addEventListener('click', () => {
+  askConfirm('Desconectar a sincronização neste aparelho? Os dados já salvos na nuvem continuam lá, e você pode reconectar com o mesmo código.', syncDisconnect);
+});
+
 // ---------- INSTALAR (PWA) ----------
 let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
@@ -3325,6 +4097,7 @@ document.getElementById('addManualBtn').addEventListener('click', () => {
   state.manualLog.push({id:'m'+Date.now(), date:todayStr(), subjectId:s.id, minutes});
   checkCycleComplete();
   afterStudyChange(); renderManualLog();
+  showLogPanel('man', s);
   toast(`+${fmtMin(minutes)} em ${s.label}`);
 });
 function renderManualLog(){
@@ -3370,7 +4143,12 @@ renderBackupInfo(); renderBackupBanner(); renderInstallInfo();
 fillFonteSelects(); renderFontesList();
 fillGoalInputs(); renderConsistencia();
 fillAgendaConcursoSelect(); renderAgendaAll();
-setInterval(() => { renderAgendaBanner(); renderProxSim(); }, 60000);
+renderReportBanner();
+renderSyncUI();
+if (state.syncCode && state.syncEnabled){
+  if (syncInitFirebase()) syncListen(state.syncCode);
+}
+setInterval(() => { renderAgendaBanner(); renderProxSim(); renderReportBanner(); }, 60000);
 </script>
 <script>
 if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
