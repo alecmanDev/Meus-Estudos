@@ -1241,6 +1241,9 @@ function defaultSubjects(){
                  'Atualidades','Raciocínio Lógico','Redação','Revisão'];
   return names.map((n,i) => ({id:'s'+i, label:n, goal:1.5, studied:0, color:palette[i%palette.length]}));
 }
+// Declarado antes do primeiro applyTheme(): ao abrir o app, o concurso ativo pode ter um logo antigo
+// que precisa ser reprocessado (upgradeLogo), e usar esta variável antes da declaração travava o app inteiro.
+const logoUpgrading = new Set();
 let state = loadState();
 
 // ---------- TEMA (claro/escuro) ----------
@@ -4758,7 +4761,6 @@ function prepareLogo(file, max){
     fr.readAsDataURL(file);
   });
 }
-const logoUpgrading = new Set();
 // imagens enviadas antes desta versão: refaz o tratamento (fundo/recorte) uma vez
 function upgradeLogo(c){
   if (!c.logo || c.logoV === 2 || logoUpgrading.has(c.id)) return;
