@@ -3,20 +3,18 @@
 App de estudos (ciclo, pomodoro, simulados, concursos) que roda no navegador do celular e do notebook,
 funciona offline e pode ser instalado com ícone próprio.
 
-## 1. Publicar no GitHub Pages (uma vez só, pelo notebook)
+## 1. Publicar no GitHub Pages
 
-1. Extraia o arquivo `meu-estudo-pwa.zip`. Vai aparecer a pasta `meu-estudo`.
-2. No GitHub, clique em **New repository**. Nome sugerido: `meu-estudo`. Marque **Public**
-   (o GitHub Pages gratuito exige repositório público — só o código do app fica público; seus dados de
-   estudo ficam apenas no seu aparelho). Clique em **Create repository**.
-3. Na página do repositório, clique em **uploading an existing file** (ou *Add file → Upload files*).
-4. Abra a pasta `meu-estudo` no seu computador, selecione **tudo que está dentro dela**
-   (`index.html`, `manifest.webmanifest`, `sw.js`, `README.md` e a pasta `icons`) e arraste para o GitHub.
-   Clique em **Commit changes**.
-5. Vá em **Settings → Pages**. Em *Build and deployment*, escolha **Deploy from a branch**,
-   branch **main**, pasta **/(root)** e clique em **Save**.
-6. Espere 1 a 2 minutos. O endereço aparece nessa mesma tela:
-   `https://SEU-USUARIO.github.io/meu-estudo/`
+Este repositório já contém o app pronto (`index.html`, `manifest.webmanifest`, `sw.js` e a pasta `icons`).
+Para colocá-lo no ar (uma vez só):
+
+1. No GitHub, abra o repositório e vá em **Settings → Pages**.
+2. Em *Build and deployment*, escolha **Deploy from a branch**, branch **main**, pasta **/(root)** e clique em **Save**.
+3. Espere 1 a 2 minutos. O endereço aparece nessa mesma tela:
+   `https://alecmandev.github.io/Meus-Estudos/`
+
+O repositório precisa ser **público** para o GitHub Pages gratuito — só o código do app fica público; seus dados
+de estudo ficam apenas no seu aparelho (e na nuvem, se você ligar a sincronização).
 
 ## 2. Usar no celular e no notebook
 
@@ -42,6 +40,9 @@ Como usar:
 2. No segundo aparelho, digite esse código em **Já tenho um código** → **Conectar**. Se já houver dados
    salvos nesse código, ele pergunta se quer trazer para este aparelho.
 3. Dali em diante, qualquer mudança em um aparelho aparece automaticamente no outro em poucos segundos.
+   Se você usar o app sem internet, as mudanças ficam guardadas como pendentes e são enviadas quando a conexão
+   voltar. Se os dois aparelhos mudarem os dados antes de sincronizar, o app pergunta qual versão manter
+   (nada é substituído em silêncio).
 4. **Desconectar** só para de sincronizar aquele aparelho — os dados continuam na nuvem, e dá para
    reconectar com o mesmo código quando quiser.
 
@@ -50,10 +51,9 @@ existe e está configurado no próprio `index.html`.
 
 ## 5. Atualizações
 
-Volte ao Claude e peça as mudanças. Ele entrega um novo `meu-estudo-pwa.zip`. No repositório do GitHub:
-*Add file → Upload files*, envie os arquivos novos com o mesmo nome (substituem os antigos) e clique em
-**Commit changes**. Em ~1 minuto a versão nova fica no ar; o app pega a atualização na próxima vez que
-você abrir com internet. Seus dados não são apagados.
+Quando houver uma versão nova do `index.html` (ou dos outros arquivos), envie para a branch **main** do repositório
+(*Add file → Upload files*, com o mesmo nome, substituindo o antigo, e **Commit changes**). Em ~1 minuto a versão
+nova fica no ar; o app pega a atualização na próxima vez que você abrir com internet. Seus dados não são apagados.
 
 ## 6. (Opcional) Gerar um APK
 
