@@ -1,5 +1,5 @@
 // Service worker do Meu Estudo: funciona offline e pega versões novas quando há internet.
-const CACHE = 'meu-estudo-v1';
+const CACHE = 'meu-estudo-v2';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -24,10 +24,13 @@ self.addEventListener('fetch', e => {
       }).catch(() => caches.match(req, {ignoreSearch:true}).then(hit => hit || caches.match('index.html')))
     );
   } else if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com' || url.hostname === 'cdn.jsdelivr.net'){
-    // fontes: cache primeiro
+    // fontes e bibliotecas (Firebase): cache primeiro
     e.respondWith(
       caches.match(req).then(hit => hit || fetch(req).then(res => {
-        const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); return res;
+        // só guarda respostas válidas (uma falha temporária não pode ficar presa no cache).
+        // <script>/<link> sem crossorigin chegam "opacas" (status ilegível): essas continuam sendo guardadas.
+        if (res.ok || res.type === 'opaque'){ const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+        return res;
       }))
     );
   }
