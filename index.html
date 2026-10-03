@@ -94,10 +94,10 @@ try {
   .pomo-ring .pomo-timer{margin:2px 0; font-size:52px; line-height:1.05;}
   .pomo-ring.rest .pomo-timer{color:var(--ok);}
   .pr-sub{font-size:11.5px; color:var(--dim); min-height:15px; max-width:70%; text-align:center;}
-  #concursoWatermark{display:none; position:fixed; inset:0; pointer-events:none; z-index:4;
-      background-repeat:no-repeat; background-position:center 58%; background-size:min(72vw, 460px) auto;
-      opacity:.07; filter:grayscale(1) brightness(2.4);}
-  html[data-theme="light"] #concursoWatermark{opacity:.08; filter:none;}
+  #concursoWatermark{display:none; position:fixed; left:50%; top:57%; width:min(74vw,480px); height:min(52vh,480px);
+      transform:translate(-50%,-50%); pointer-events:none; z-index:4; background-repeat:no-repeat; background-position:center;
+      background-size:contain; opacity:.12;}
+  html[data-theme="light"] #concursoWatermark{opacity:.10;}
   .color-pick{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--dim);}
   .color-pick input{width:40px; height:30px; padding:0; border:1px solid var(--line); border-radius:8px; background:transparent; cursor:pointer;}
   .logo-prev{width:64px; height:64px; border-radius:12px; border:1px dashed var(--line); display:flex; align-items:center;
@@ -314,6 +314,16 @@ try {
   .cal-cell.has-sim::after{content:''; position:absolute; top:5px; right:5px; width:7px; height:7px; border-radius:50%;
       background:#7CC4FF; box-shadow:0 0 0 1.5px rgba(0,0,0,.35);}
 
+  .chk-line{display:flex; align-items:center; gap:8px; font-size:13px; margin:10px 0 6px; color:var(--text); cursor:pointer;}
+  .chk-line input{width:auto;}
+  .wd-row{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px;}
+  .wd-name{font-family:'Sora',sans-serif; font-weight:700; font-size:13.5px; margin-bottom:8px;}
+  .wd-opts{display:grid; grid-template-columns:1fr 1fr; gap:8px 12px;}
+  .wd-opt{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text);}
+  .wd-opt input[type=checkbox]{width:auto; flex:none;}
+  .wd-opt input[type=number]{width:58px; background:var(--panel); border:1px solid var(--line); border-radius:7px; color:var(--text); padding:5px 6px; font-size:12.5px;}
+  .err-sum{display:flex; gap:10px; flex-wrap:wrap; font-size:12.5px; color:var(--dim); margin:0 0 12px;}
+  .err-sum b{color:var(--text);}
   /* ===== Layout para telas maiores (tablet / notebook) ===== */
   @media (min-width: 760px){
     body{padding:24px 24px 56px;}
@@ -487,6 +497,17 @@ try {
       <div id="revHoje"></div>
       <h2 style="font-size:15px; margin:16px 0 8px;">Próximas revisões</h2>
       <div id="revProximas"></div>
+    </section>
+
+    <section id="cadernoSection">
+      <h2>Revisão do caderno de erros</h2>
+      <p class="lead">Os assuntos em que você errou questões entram aqui sozinhos. Revise no sábado: o assunto só sai da lista quando você refizer questões dele sem nenhum erro — se errar de novo, ele continua na semana seguinte.</p>
+      <div id="cadernoResumo" class="err-sum"></div>
+      <div id="cadernoBody"></div>
+      <details style="margin-top:12px;">
+        <summary>Revisões feitas (por data)</summary>
+        <div id="cadernoHist" style="margin-top:10px;"></div>
+      </details>
     </section>
 
     <section>
@@ -748,9 +769,18 @@ try {
     <section id="consSection">
       <h2>Metas e consistência</h2>
       <p class="lead">Defina suas metas por dia e acompanhe a constância no calendário.</p>
-      <div class="q-form" style="margin-bottom:6px;">
+      <div class="q-form" id="simpleGoalForm" style="margin-bottom:6px;">
         <div><label>Meta de horas por dia</label><input id="metaHorasDia" type="number" min="0.25" step="0.25"></div>
         <div><label>Meta de questões por dia (opcional)</label><input id="metaQuestoesDia" type="number" min="0" placeholder="Sem meta"></div>
+      </div>
+      <label class="chk-line"><input type="checkbox" id="wdToggle"> Personalizar as metas por dia da semana (opcional)</label>
+      <div id="wdEditor" style="display:none;">
+        <p class="cons-note" style="margin:0 0 10px;">Marque, para cada dia, quais metas valem. Dia sem nenhuma meta marcada é um dia livre (não conta nas porcentagens). A redação é "fez ou não fez": fez = verde, não fez = cinza. A revisão de erros usa como meta o nº de questões erradas registradas na semana, antes daquele dia.</p>
+        <div id="wdRows"></div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+          <button class="btn small" id="wdSaveBtn" type="button">Salvar metas</button>
+          <button class="btn ghost small" id="wdSuggestBtn" type="button">Usar rotina sugerida</button>
+        </div>
       </div>
       <p class="cons-note" id="metaNote"></p>
       <div class="cons-tabs" id="consTabs">
@@ -763,10 +793,11 @@ try {
       <details style="margin-top:14px;">
         <summary>Como as cores funcionam</summary>
         <p class="cons-note" style="margin:8px 0 0;">
-          <b style="color:var(--st-green)">Verde</b>: bateu todas as metas do dia (horas e, se definida, questões).<br>
+          <b style="color:var(--st-green)">Verde</b>: bateu todas as metas do dia.<br>
           <b style="color:var(--st-yellow)">Amarelo (parcial)</b>: bateu só uma das metas, ou chegou a pelo menos metade delas.<br>
           <b style="color:var(--st-red)">Vermelho</b>: estudou, mas ficou abaixo de metade das metas.<br>
-          <b>Cinza</b>: nenhum registro no dia. As questões contam acertos e erros, incluindo as de simulados.
+          <b>Cinza</b>: nenhum registro no dia. Redação é "fez ou não fez": fez = verde, não fez = cinza.<br>
+          As questões contam acertos e erros, incluindo as de simulados. Com as metas por dia da semana ativadas, cada dia usa as metas marcadas (horas, questões, redação, revisão de erros) e o dia livre fica fora das porcentagens.
         </p>
       </details>
     </section>
@@ -1031,6 +1062,7 @@ function loadState(rawObj){
   if (!s.cycleStart) s.cycleStart = s.date;
   if (!Array.isArray(s.pomoLog)) s.pomoLog = [];
   if (!Array.isArray(s.cycleHistory)) s.cycleHistory = [];
+  if (!Array.isArray(s.errosLog)) s.errosLog = [];
   if (s.reportDismissedMonth === undefined) s.reportDismissedMonth = null;
   if (!s.theme) s.theme = 'dark';
   if (s.syncCode === undefined) s.syncCode = null;
@@ -1189,7 +1221,7 @@ document.querySelectorAll('.tab').forEach(t => {
     document.getElementById('view-'+t.dataset.view).classList.add('active');
     renderBackupBanner();
     if (t.dataset.view === 'pomo'){ fillSubjectSelect(); renderManualLog(); }
-    if (t.dataset.view === 'ciclo'){ renderRevisoes(); renderBackupInfo(); }
+    if (t.dataset.view === 'ciclo'){ renderRevisoes(); renderCaderno(); renderBackupInfo(); }
     if (t.dataset.view === 'historico'){ renderConsistencia(); }
     if (t.scrollIntoView) t.scrollIntoView({inline:'center', block:'nearest', behavior:'smooth'});
     if (t.dataset.view === 'resumo') { renderPie(); renderBarChart(); renderQuestoesDoDia(); fillDisciplinaSelect(); renderHistoryCharts(); renderFormaStats(); }
@@ -2000,9 +2032,12 @@ document.getElementById('addQuestaoBtn').addEventListener('click', () => {
   const questoes = Math.max(0, parseInt(document.getElementById('qQuestoes').value)||0);
   const acertos = Math.max(0, parseInt(document.getElementById('qAcertos').value)||0);
   if (!assunto) return;
-  state.questoes.push({assunto, disciplina, fonte, questoes, acertos, date: todayStr()});
+  const _cadAntes = new Set(buildCaderno().map(i => i.key));
+  state.questoes.push({assunto, disciplina, fonte, questoes, acertos, date: todayStr(), ts: Date.now()});
+  const _cadDepois = new Set(buildCaderno().map(i => i.key));
+  _cadAntes.forEach(k => { if (!_cadDepois.has(k)) toast(`🎉 Erros de "${assunto}" zerados no caderno de erros!`); });
   document.getElementById('qAssunto').value = '';
-  saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart(); fillFonteSelects(); renderFontesList(); renderFormaStats();
+  saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart(); fillFonteSelects(); renderFontesList(); renderFormaStats(); renderCaderno();
   if (questoes > 0){
     const pct = Math.round(acertos/questoes*100);
     if (pct < 60){
@@ -2032,7 +2067,7 @@ document.getElementById('qSuggestNo').addEventListener('click', () => {
 document.getElementById('clearQuestoesBtn').addEventListener('click', () => {
   askConfirm('Apagar TODAS as questões registradas (de todos os dias)? Isso limpa também os gráficos e o desempenho por disciplina.', () => {
     state.questoes = [];
-    saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart(); fillFonteSelects(); renderFontesList();
+    saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart(); fillFonteSelects(); renderFontesList(); renderCaderno();
     toast('Questões apagadas.');
   });
 });
@@ -2054,7 +2089,7 @@ function renderQuestoesDoDia(){
   body.querySelectorAll('.del-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       state.questoes.splice(parseInt(e.target.dataset.idx),1);
-      saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart(); fillFonteSelects(); renderFontesList();
+      saveState(); renderQuestoesDoDia(); renderDiscList(); renderMonthQuestoesChart(); fillFonteSelects(); renderFontesList(); renderCaderno();
     });
   });
 }
@@ -2263,7 +2298,7 @@ function refreshAll(){
   renderCountdown(); renderConcursoList(); renderRevisoes();
   document.getElementById('activeConcursoSelect').value = state.activeConcursoId || '';
   renderManualLog(); renderBackupInfo(); renderBackupBanner();
-  fillGoalInputs(); renderConsistencia(); renderCycleAge();
+  fillGoalInputs(); renderConsistencia(); renderCycleAge(); renderCaderno();
   fillAgendaConcursoSelect(); renderAgendaAll();
   document.getElementById('reportMonthInput').value = lastNMonthKeys(2)[0];
   renderReportBanner();
@@ -2964,7 +2999,8 @@ function renderConcursoModalBody(c){
     const file = e.target.files[0];
     if (!file) return;
     try {
-      c.logo = await shrinkImage(file, 220);
+      const r = await prepareLogo(file, 256);
+      c.logo = r.url; c.logoLum = r.lum; c.logoV = 2;
       afterLookChange(); renderConcursoModalBody(c);
       toast('Imagem salva!');
     } catch(err){ toast('Não foi possível ler essa imagem.', 'err'); }
@@ -3239,25 +3275,69 @@ function fmtDM(ds){ const d = parseDate(ds); return pad2(d.getDate())+'/'+pad2(d
 
 // metas (com histórico: mudar a meta não reescreve os dias passados)
 function currentGoal(){ return state.goalHistory[state.goalHistory.length-1]; }
+const WD_ROWS = [1,2,3,4,5,6,0]; // seg..dom (valores de Date.getDay)
+function wdName(d){ return WD_FULL[(d+6)%7]; }
+// meta do dia: sem personalização, vale a mesma para todos os dias; com personalização, a do dia da semana
 function goalFor(ds){
-  let g = state.goalHistory[0];
-  for (const e of state.goalHistory){ if (e.from <= ds) g = e; }
-  return g;
+  let e = state.goalHistory[0];
+  for (const x of state.goalHistory){ if (x.from <= ds) e = x; }
+  if (!e.wd) return {h:e.h, q:e.q, red:false, err:false, custom:false};
+  const g = e.wd[parseDate(ds).getDay()] || {};
+  return {h:g.h||0, q:g.q||0, red:!!g.red, err:!!g.err, custom:true};
 }
-function applyGoal(h, q){
+function commitGoal(h, q, wd){
   const last = currentGoal();
-  if (last.h === h && last.q === q) return false;
-  if (!state.goalSet && state.goalHistory.length === 1){ last.h = h; last.q = q; }
-  else if (last.from === todayStr()){ last.h = h; last.q = q; }
-  else state.goalHistory.push({from: todayStr(), h, q});
+  const same = last.h === h && last.q === q && JSON.stringify(last.wd || null) === JSON.stringify(wd || null);
+  if (same) return false;
+  const apply = e => { e.h = h; e.q = q; if (wd) e.wd = wd; else delete e.wd; };
+  if (!state.goalSet && state.goalHistory.length === 1) apply(last);
+  else if (last.from === todayStr()) apply(last);
+  else { const e = {from: todayStr()}; apply(e); state.goalHistory.push(e); }
   state.goalSet = true;
   saveState();
   return true;
 }
+function applyGoal(h, q){ return commitGoal(h, q, null); }
+function wdDefaults(){ const g = currentGoal(), m = {}; WD_ROWS.forEach(d => m[d] = {h:g.h||0, q:g.q||0, red:false, err:false}); return m; }
+function wdSuggested(){
+  const g = currentGoal(), m = {};
+  [1,2,3,4,5].forEach(d => m[d] = {h:g.h||1, q:g.q||10, red:false, err:false});
+  m[6] = {h:0, q:0, red:false, err:true};
+  m[0] = {h:0, q:0, red:true, err:false};
+  return m;
+}
+function renderWdEditor(map){
+  document.getElementById('wdRows').innerHTML = WD_ROWS.map(d => {
+    const g = map[d] || {};
+    return `<div class="wd-row" data-wd="${d}"><div class="wd-name">${wdName(d)}</div><div class="wd-opts">
+      <label class="wd-opt"><input type="checkbox" class="wdH" ${g.h>0?'checked':''}><span>Horas</span><input type="number" class="wdHv" step="0.25" min="0.25" value="${g.h>0?g.h:1}"></label>
+      <label class="wd-opt"><input type="checkbox" class="wdQ" ${g.q>0?'checked':''}><span>Questões</span><input type="number" class="wdQv" min="1" value="${g.q>0?g.q:10}"></label>
+      <label class="wd-opt"><input type="checkbox" class="wdR" ${g.red?'checked':''}><span>Redação (1)</span></label>
+      <label class="wd-opt"><input type="checkbox" class="wdE" ${g.err?'checked':''}><span>Revisão de erros</span></label>
+    </div></div>`;
+  }).join('');
+}
+function readWdEditor(){
+  const map = {};
+  for (const row of document.querySelectorAll('#wdRows .wd-row')){
+    const d = parseInt(row.dataset.wd);
+    const hOn = row.querySelector('.wdH').checked, qOn = row.querySelector('.wdQ').checked;
+    const h = hOn ? Math.round(parseFloat(row.querySelector('.wdHv').value)*100)/100 : 0;
+    const q = qOn ? parseInt(row.querySelector('.wdQv').value) : 0;
+    if (hOn && !(h > 0)){ toast(`${wdName(d)}: informe as horas da meta.`, 'err'); return null; }
+    if (qOn && !(q > 0)){ toast(`${wdName(d)}: informe a quantidade de questões da meta.`, 'err'); return null; }
+    map[d] = {h, q, red:row.querySelector('.wdR').checked, err:row.querySelector('.wdE').checked};
+  }
+  return map;
+}
 function fillGoalInputs(){
-  const g = currentGoal();
+  const g = currentGoal(), custom = !!g.wd;
   document.getElementById('metaHorasDia').value = g.h;
   document.getElementById('metaQuestoesDia').value = g.q > 0 ? g.q : '';
+  document.getElementById('wdToggle').checked = custom;
+  document.getElementById('wdEditor').style.display = custom ? 'block' : 'none';
+  document.getElementById('simpleGoalForm').style.display = custom ? 'none' : '';
+  if (custom) renderWdEditor(g.wd);
   document.getElementById('metaNote').textContent = state.goalHistory.length > 1
     ? 'Alterações de meta valem a partir do dia em que foram feitas; dias anteriores mantêm a meta da época.'
     : 'Se você mudar a meta depois, os dias anteriores mantêm a meta da época.';
@@ -3273,6 +3353,31 @@ function onGoalChange(){
   if (changed) toast(first ? 'Metas salvas.' : 'Metas atualizadas — valem a partir de hoje.');
   renderConsistencia();
 }
+document.getElementById('wdToggle').addEventListener('change', e => {
+  const g = currentGoal();
+  if (e.target.checked){
+    document.getElementById('wdEditor').style.display = 'block';
+    document.getElementById('simpleGoalForm').style.display = 'none';
+    renderWdEditor(g.wd || wdDefaults());
+  } else {
+    const changed = commitGoal(g.h, g.q, null);
+    fillGoalInputs();
+    if (changed) toast('Metas por dia da semana desativadas — valem a partir de hoje.');
+    renderConsistencia();
+  }
+});
+document.getElementById('wdSaveBtn').addEventListener('click', () => {
+  const map = readWdEditor();
+  if (!map) return;
+  const g = currentGoal();
+  const changed = commitGoal(g.h, g.q, map);
+  fillGoalInputs(); renderConsistencia();
+  toast(changed ? 'Metas por dia da semana salvas — valem a partir de hoje.' : 'Nada mudou nas metas.');
+});
+document.getElementById('wdSuggestBtn').addEventListener('click', () => {
+  renderWdEditor(wdSuggested());
+  toast('Rotina sugerida carregada: seg–sex horas e questões, sábado revisão de erros, domingo redação. Toque em "Salvar metas".');
+});
 document.getElementById('metaHorasDia').addEventListener('change', onGoalChange);
 document.getElementById('metaQuestoesDia').addEventListener('change', onGoalChange);
 
@@ -3285,23 +3390,42 @@ function buildQMap(){
   state.simulados.forEach(r => { const t = simTotals(r); add(r.date, t.total, t.acertos); });
   return m;
 }
+let consRedMap = {}, consErrMap = {};
+function buildRedMap(){ const m = {}; state.redacoes.forEach(r => { if (r.date) m[r.date] = (m[r.date]||0) + 1; }); return m; }
+function buildErrMap(){ const m = {}; state.errosLog.forEach(l => { if (l.type === 'rev') m[l.date] = (m[l.date]||0) + (l.erros||0); }); return m; }
+// meta da revisão de erros do dia = erros registrados nas questões da semana, antes deste dia
+function errTargetFor(ds){
+  const wk = mondayOf(ds);
+  let t = 0;
+  state.questoes.forEach(q => { if (q.date >= wk && q.date < ds) t += Math.max(0, (q.questoes||0) - (q.acertos||0)); });
+  return t;
+}
 function dayInfo(ds){
   const g = goalFor(ds);
   const h = state.history[ds] || 0;
   const qd = consQmap[ds] || {t:0, a:0};
-  const hasQ = g.q > 0;
+  const red = consRedMap[ds] || 0;
+  const errDone = consErrMap[ds] || 0;
+  const errTarget = g.err ? errTargetFor(ds) : 0;
+  const goals = [];
+  if (g.h > 0) goals.push(h / g.h);
+  if (g.q > 0) goals.push(qd.t / g.q);
+  if (g.red) goals.push(red >= 1 ? 1 : 0);
+  if (g.err && errTarget > 0) goals.push(errDone / errTarget);
+  // houve movimento relacionado às metas do dia? (a redação não feita deixa o dia cinza)
+  const act = ((g.h > 0 || g.q > 0) && (h > 0 || qd.t > 0)) || (g.red && red > 0) || (g.err && errTarget > 0 && errDone > 0);
   let status;
   if (ds > todayStr()) status = 'future';
-  else if (h <= 0 && qd.t <= 0) status = 'none';
+  else if (goals.length === 0) status = (h > 0 || qd.t > 0 || red > 0 || errDone > 0) ? 'green' : 'none';
   else {
-    const hr = h / g.h, qr = hasQ ? qd.t / g.q : 0;
-    const metH = hr >= 1 - 1e-9, metQ = hasQ && qr >= 1;
-    if (metH && (!hasQ || metQ)) status = 'green';
-    else if (metH || metQ) status = 'yellow';
-    else if (hr >= 0.5 || (hasQ && qr >= 0.5)) status = 'yellow';
+    const met = goals.filter(r => r >= 1 - 1e-9).length;
+    if (met === goals.length) status = 'green';
+    else if (!act) status = 'none';
+    else if (met > 0 || Math.max(...goals) >= 0.5) status = 'yellow';
     else status = 'red';
   }
-  return {ds, h, q:qd.t, acertos:qd.a, goalH:g.h, goalQ:g.q, status};
+  return {ds, h, q:qd.t, acertos:qd.a, goalH:g.h, goalQ:g.q, goalRed:g.red, goalErr:g.err, red, errDone, errTarget,
+          planned: goals.length > 0, status};
 }
 
 // estado da navegação (não é salvo)
@@ -3327,16 +3451,26 @@ function dayDetailHtml(ds){
   const d = parseDate(ds);
   const title = `${WD_FULL[wdIndex(d)]}, ${fmtDM(ds)}/${d.getFullYear()}`;
   const color = `var(--st-${i.status === 'future' ? 'none' : i.status})`;
-  const hp = Math.min(100, i.goalH > 0 ? i.h/i.goalH*100 : 0);
-  const qp = Math.min(100, i.goalQ > 0 ? i.q/i.goalQ*100 : 0);
-  const erros = i.q - i.acertos;
+  const bar = pct => `<div class="progress" style="margin:0;"><div class="progress-fill" style="width:${Math.min(100,pct)}%; background:${color}"></div></div>`;
+  const rows = [];
+  if (i.goalH > 0 || i.h > 0)
+    rows.push(`<div class="dd-row"><div class="dd-top"><span>Horas estudadas</span><b>${fmtH(i.h)}${i.goalH > 0 ? ' / '+fmtH(i.goalH) : ' (sem meta)'}</b></div>${i.goalH > 0 ? bar(i.h/i.goalH*100) : ''}</div>`);
+  if (i.goalQ > 0 || i.q > 0)
+    rows.push(`<div class="dd-row"><div class="dd-top"><span>Questões</span><b>${i.q}${i.goalQ > 0 ? ' / '+i.goalQ : ' (sem meta)'}</b></div>${i.goalQ > 0 ? bar(i.q/i.goalQ*100) : ''}
+      ${i.q > 0 ? `<div class="cons-note" style="margin-top:5px;">${i.acertos} acertos · ${i.q - i.acertos} erros</div>` : ''}</div>`);
+  if (i.goalRed || i.red > 0)
+    rows.push(`<div class="dd-row"><div class="dd-top"><span>Redação</span><b>${i.red >= 1 ? '✓ feita' : (i.goalRed ? 'não feita' : '—')}</b></div></div>`);
+  if (i.goalErr)
+    rows.push(i.errTarget > 0
+      ? `<div class="dd-row"><div class="dd-top"><span>Revisão de erros</span><b>${i.errDone} / ${i.errTarget}</b></div>${bar(i.errDone/i.errTarget*100)}</div>`
+      : `<div class="dd-row"><div class="dd-top"><span>Revisão de erros</span><b>sem erros para revisar</b></div></div>`);
+  else if (i.errDone > 0)
+    rows.push(`<div class="dd-row"><div class="dd-top"><span>Erros revisados</span><b>${i.errDone}</b></div></div>`);
+  if (!rows.length) rows.push('<p class="cons-note" style="margin:10px 0 0;">Dia livre — sem metas definidas.</p>');
+  else if (!i.planned && i.status !== 'future') rows.push('<p class="cons-note" style="margin:10px 0 0;">Dia livre — sem metas definidas.</p>');
   return `<div class="day-detail">
     <div class="dd-head"><b>${title}</b><span class="dd-badge" style="${ST_BADGE[i.status]}">${ST_LABEL[i.status]}</span></div>
-    <div class="dd-row"><div class="dd-top"><span>Horas estudadas</span><b>${fmtH(i.h)} / ${fmtH(i.goalH)}</b></div>
-      <div class="progress" style="margin:0;"><div class="progress-fill" style="width:${hp}%; background:${color}"></div></div></div>
-    <div class="dd-row"><div class="dd-top"><span>Questões</span><b>${i.q}${i.goalQ > 0 ? ' / '+i.goalQ : ' (sem meta)'}</b></div>
-      ${i.goalQ > 0 ? `<div class="progress" style="margin:0;"><div class="progress-fill" style="width:${qp}%; background:${color}"></div></div>` : ''}
-      ${i.q > 0 ? `<div class="cons-note" style="margin-top:5px;">${i.acertos} acertos · ${erros} erros</div>` : ''}</div>
+    ${rows.join('')}
     ${agendaDetailHtml(ds)}
   </div>`;
 }
@@ -3373,7 +3507,7 @@ function bindConsBox(box){
 function renderConsistencia(){
   const box = document.getElementById('consBody');
   if (!box) return;
-  consQmap = buildQMap();
+  consQmap = buildQMap(); consRedMap = buildRedMap(); consErrMap = buildErrMap();
   document.querySelectorAll('#consTabs .ctab').forEach(t => t.classList.toggle('active', t.dataset.v === cons.view));
   if (cons.view === 'dia') renderConsDia(box);
   else if (cons.view === 'semana') renderConsSemana(box);
@@ -3400,9 +3534,11 @@ function renderConsDia(box){
   let green = 0, studied = 0, elapsed = 0, hours = 0, questions = 0;
   for (let d = 1; d <= n; d++){
     const ds = ym+'-'+pad2(d), i = dayInfo(ds);
-    if (i.status !== 'future') elapsed++;
-    if (i.status === 'green') green++;
-    if (i.status !== 'none' && i.status !== 'future') studied++;
+    if (i.planned && i.status !== 'future'){
+      elapsed++;
+      if (i.status === 'green') green++;
+      if (i.status !== 'none') studied++;
+    }
     hours += i.h; questions += i.q;
     cells += `<div class="cal-cell st-${i.status} ${ds===today?'today':''} ${ds===cons.sel?'sel':''} ${simOnDate(ds).length?'has-sim':''}" data-d="${ds}"><span>${d}</span><small>${ST_SYMBOL[i.status]}</small></div>`;
   }
@@ -3434,7 +3570,10 @@ function renderConsSemana(box){
   const totH = infos.reduce((a,i)=>a+i.h,0), totQ = infos.reduce((a,i)=>a+i.q,0);
   const goalH = infos.reduce((a,i)=>a+i.goalH,0);
   const goalQ = infos.reduce((a,i)=>a+i.goalQ,0);
-  const greens = infos.filter(i => i.status === 'green').length;
+  const plannedN = infos.filter(i => i.planned).length;
+  const greens = infos.filter(i => i.planned && i.status === 'green').length;
+  const redGoal = infos.filter(i => i.goalRed).length, redDone = infos.filter(i => i.goalRed && i.red >= 1).length;
+  const errGoal = infos.reduce((a,i) => a + (i.goalErr ? i.errTarget : 0), 0), errDone = infos.reduce((a,i) => a + (i.goalErr ? i.errDone : 0), 0);
   const hp = goalH > 0 ? Math.min(100, totH/goalH*100) : 0;
   box.innerHTML = navHtml(`${fmtDM(infos[0].ds)} – ${fmtDM(infos[6].ds)}`) + `
     <div class="cons-note" style="margin-bottom:6px;">Horas por dia <span style="opacity:.7">(linha tracejada = meta)</span></div>
@@ -3444,7 +3583,9 @@ function renderConsSemana(box){
     <div class="cons-sum" style="flex-wrap:wrap;">
       <div class="cs-item"><div class="cs-n">${fmtH(totH)}</div><div class="cs-c">de ${fmtH(goalH)} na semana</div></div>
       <div class="cs-item"><div class="cs-n">${totQ}</div><div class="cs-c">questões${goalQ > 0 ? ' (meta '+goalQ+')' : ''}</div></div>
-      <div class="cs-item"><div class="cs-n">${greens}/7</div><div class="cs-c">dias com meta</div></div>
+      <div class="cs-item"><div class="cs-n">${greens}/${plannedN}</div><div class="cs-c">dias com meta</div></div>
+      ${redGoal > 0 ? `<div class="cs-item"><div class="cs-n">${redDone}/${redGoal}</div><div class="cs-c">redação</div></div>` : ''}
+      ${errGoal > 0 ? `<div class="cs-item"><div class="cs-n">${errDone}/${errGoal}</div><div class="cs-c">erros revisados</div></div>` : ''}
     </div>
     <div class="progress" style="margin-top:12px;"><div class="progress-fill" style="width:${hp}%; background:var(--st-green)"></div></div>` + legendHtml();
 }
@@ -3458,7 +3599,7 @@ function renderConsMes(box){
   const goalH = infos.reduce((a,i)=>a+i.goalH,0);
   const hp = goalH > 0 ? Math.min(100, totH/goalH*100) : 0;
   const cnt = {green:0, yellow:0, red:0, none:0};
-  infos.forEach(i => { if (i.status !== 'future') cnt[i.status]++; });
+  infos.forEach(i => { if (i.status !== 'future' && (i.planned || i.status !== 'none')) cnt[i.status]++; });
   const totalDays = cnt.green + cnt.yellow + cnt.red + cnt.none;
   const seg = k => totalDays > 0 ? cnt[k]/totalDays*100 : 0;
   const weeks = {};
@@ -3490,20 +3631,31 @@ function renderConsMes(box){
 }
 
 // ----- Ano (mapa de consistência) -----
+function dayActive(ds){
+  return (state.history[ds]||0) > 0 || (consQmap[ds] && consQmap[ds].t > 0) || (consRedMap[ds]||0) > 0 || (consErrMap[ds]||0) > 0;
+}
+function dayIsFree(ds){ const g = goalFor(ds); return !(g.h > 0 || g.q > 0 || g.red || g.err); }
+// dia livre sem estudo não quebra a sequência
 function streaks(){
-  const set = new Set();
-  Object.keys(state.history).forEach(k => { if (state.history[k] > 0) set.add(k); });
-  Object.keys(consQmap).forEach(k => { if (consQmap[k].t > 0) set.add(k); });
-  const dates = [...set].sort();
-  let best = 0, run = 0, prev = null;
-  dates.forEach(ds => {
-    run = (prev && shiftDate(prev, 1) === ds) ? run+1 : 1;
-    if (run > best) best = run;
-    prev = ds;
-  });
-  const today = todayStr();
-  let cur = 0, d = set.has(today) ? today : shiftDate(today, -1);
-  while (set.has(d)){ cur++; d = shiftDate(d, -1); }
+  const keys = new Set();
+  Object.keys(state.history).forEach(k => { if (state.history[k] > 0) keys.add(k); });
+  Object.keys(consQmap).forEach(k => { if (consQmap[k].t > 0) keys.add(k); });
+  Object.keys(consRedMap).forEach(k => keys.add(k));
+  Object.keys(consErrMap).forEach(k => keys.add(k));
+  if (!keys.size) return {best:0, cur:0};
+  const first = [...keys].sort()[0], today = todayStr();
+  let best = 0, run = 0;
+  for (let ds = first; ds <= today; ds = shiftDate(ds, 1)){
+    if (dayActive(ds)){ run++; if (run > best) best = run; }
+    else if (!dayIsFree(ds)) run = 0;
+  }
+  let cur = 0, ds = today;
+  if (!dayActive(ds)) ds = shiftDate(ds, -1);
+  while (ds >= first){
+    if (dayActive(ds)) cur++;
+    else if (!dayIsFree(ds)) break;
+    ds = shiftDate(ds, -1);
+  }
   return {best, cur};
 }
 function renderConsAno(box){
@@ -3516,7 +3668,7 @@ function renderConsAno(box){
   for (let k = 0; k < nDays; k++){
     const d = new Date(y, 0, 1+k), ds = fmtDate(d), i = dayInfo(ds);
     total += i.h; goalYear += i.goalH;
-    if (ds <= today){ elapsed++; if (i.status !== 'none'){ studied++; } if (i.status === 'green') greens++; }
+    if (ds <= today && i.planned){ elapsed++; if (i.status !== 'none'){ studied++; } if (i.status === 'green') greens++; }
     cells += `<div class="hc st-${i.status} ${ds===cons.sel?'sel':''}" data-d="${ds}" title="${fmtDM(ds)}"></div>`;
   }
   let prevTotal = 0;
@@ -3564,6 +3716,102 @@ function renderConsAno(box){
   }
   sc.addEventListener('scroll', () => { cons.heatScroll = sc.scrollLeft; });
 }
+
+
+// ---------- CADERNO DE ERROS ----------
+function errKey(assunto, disciplina){ return String(assunto||'').trim().toLowerCase() + '|' + String(disciplina||'').trim().toLowerCase(); }
+// Itens abertos do caderno, derivados das questões registradas + do log de revisões.
+// Regras: errar um assunto abre o item; "Revisei" registra a revisão; depois, questões do assunto sem nenhum erro
+// o encerram; errar de novo após a revisão mantém o item (passa para a semana seguinte); "Resolvido" encerra à mão.
+function buildCaderno(){
+  const ev = [];
+  state.questoes.forEach((q, idx) => ev.push({t:'q', date:q.date || '', ts:(q.ts||0) + idx*1e-3, q}));
+  state.errosLog.forEach(l => ev.push({t:l.type, date:l.date || '', ts:l.ts||0, l}));
+  ev.sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.ts - b.ts);
+  const items = {};
+  ev.forEach(e => {
+    if (e.t === 'q'){
+      const q = e.q, total = q.questoes||0, erros = Math.max(0, total - (q.acertos||0)), key = errKey(q.assunto, q.disciplina);
+      const it = items[key];
+      if (erros > 0){
+        if (!it || !it.open){
+          items[key] = {key, assunto:q.assunto, disciplina:q.disciplina, open:true, erros, semana:mondayOf(q.date), lastErrDate:q.date, reviewedAt:null, retest:false};
+        } else if (it.reviewedAt){
+          it.erros = erros; it.reviewedAt = null; it.retest = true; it.lastErrDate = q.date;
+        } else { it.erros += erros; it.lastErrDate = q.date; }
+      } else if (it && it.open && it.reviewedAt && total > 0 && q.date >= it.reviewedAt){
+        it.open = false;
+      }
+    } else if (e.t === 'rev'){
+      const it = items[e.l.key]; if (it && it.open) it.reviewedAt = e.date;
+    } else if (e.t === 'undo'){
+      const it = items[e.l.key]; if (it && it.open && it.reviewedAt === e.l.date) it.reviewedAt = null;
+    } else if (e.t === 'zerar'){
+      const it = items[e.l.key]; if (it) it.open = false;
+    }
+  });
+  return Object.values(items).filter(i => i.open);
+}
+let cadernoItems = [];
+function cadernoSlotHtml(it, idx, wk, today){
+  const old = it.semana < wk;
+  let badge;
+  if (it.reviewedAt) badge = {cls:'soon', label:'Aguardando reteste'};
+  else if (old) badge = {cls:'late', label:'Semana anterior'};
+  else badge = {cls:'today', label:'Revisar'};
+  const meta = `${escHtml(it.disciplina)} · ${it.erros} erro${it.erros>1?'s':''} · semana de ${fmtDM(it.semana)}${it.retest ? ' · errou de novo no reteste' : ''}`;
+  const note = it.reviewedAt ? `<div class="rev-meta">Revisado em ${fmtDM(it.reviewedAt)} — refaça questões desse assunto; se vierem sem erros, ele sai daqui.</div>` : '';
+  const act = it.reviewedAt
+    ? (it.reviewedAt === today ? `<button class="btn ghost small errUndo" data-i="${idx}">Desfazer revisão</button>` : '')
+    : `<button class="btn small errRev" data-i="${idx}">Revisei</button>`;
+  return `<div class="rev-slot"><div class="rev-head" style="cursor:default;">
+      <div class="rev-top"><div class="rev-name">${escHtml(it.assunto)}</div><span class="rev-badge ${badge.cls}">${badge.label}</span></div>
+      <div class="rev-meta">${meta}</div>${note}</div>
+    <div class="rev-actions">${act}<button class="btn ghost small errZero" data-i="${idx}">Resolvido</button></div></div>`;
+}
+function renderCaderno(){
+  const body = document.getElementById('cadernoBody');
+  if (!body) return;
+  const today = todayStr(), wk = mondayOf(today), wkEnd = shiftDate(wk, 6);
+  cadernoItems = buildCaderno().sort((a,b) => (b.erros - a.erros) || a.assunto.localeCompare(b.assunto));
+  let weekErr = 0, revWeek = 0;
+  state.questoes.forEach(q => { if (q.date >= wk && q.date <= wkEnd) weekErr += Math.max(0, (q.questoes||0) - (q.acertos||0)); });
+  state.errosLog.forEach(l => { if (l.type === 'rev' && l.date >= wk && l.date <= wkEnd) revWeek += l.erros||0; });
+  const g = goalFor(today);
+  const metaHoje = g.err ? (() => { const t = errTargetFor(today); return t > 0 ? ` · <b>meta de hoje:</b> revisar ${t} (feitos ${consErrMapSafe(today)})` : ''; })() : '';
+  document.getElementById('cadernoResumo').innerHTML =
+    `<span>Erros registrados nesta semana: <b>${weekErr}</b></span><span>Revisados: <b>${revWeek}</b></span>${metaHoje ? `<span>${metaHoje.replace(/^ · /,'')}</span>` : ''}`;
+  const cur = cadernoItems.filter(i => i.semana >= wk), old = cadernoItems.filter(i => i.semana < wk);
+  const sect = (title, arr) => arr.length ? `<h2 style="font-size:15px; margin:12px 0 8px;">${title}</h2>` + arr.map(it => cadernoSlotHtml(it, cadernoItems.indexOf(it), wk, today)).join('') : '';
+  body.innerHTML = cadernoItems.length
+    ? sect('Desta semana', cur) + sect('Semanas anteriores (continuam até zerar)', old)
+    : '<p class="lead" style="margin:0;">Nenhum assunto com erros pendentes. Quando você registrar questões com erros, elas aparecem aqui.</p>';
+  // histórico de revisões por data
+  const byDate = {};
+  state.errosLog.filter(l => l.type === 'rev').forEach(l => { (byDate[l.date] = byDate[l.date] || []).push(l); });
+  const dates = Object.keys(byDate).sort().reverse().slice(0, 12);
+  document.getElementById('cadernoHist').innerHTML = dates.length ? dates.map(ds => {
+    const arr = byDate[ds], tot = arr.reduce((a,l)=>a+(l.erros||0),0);
+    return `<div class="q-meta" style="margin-bottom:6px;"><b style="color:var(--text)">${fmtLongDate(ds)}</b> — ${tot} erro${tot>1?'s':''} revisado${tot>1?'s':''}: ${arr.map(l => escHtml(l.assunto)+' ('+(l.erros||0)+')').join(', ')}</div>`;
+  }).join('') : '<p class="lead" style="margin:0;">Nenhuma revisão registrada ainda.</p>';
+}
+function consErrMapSafe(ds){ return buildErrMap()[ds] || 0; }
+function logCaderno(type, it, extra){
+  state.errosLog.push(Object.assign({id:'e'+Date.now()+Math.floor(Math.random()*1000), type, date:todayStr(), key:it.key,
+    assunto:it.assunto, disciplina:it.disciplina, erros:it.erros, ts:Date.now()}, extra||{}));
+  saveState(); renderCaderno(); renderConsistencia();
+}
+document.getElementById('cadernoBody').addEventListener('click', e => {
+  const b = e.target.closest('button[data-i]');
+  if (!b) return;
+  const it = cadernoItems[parseInt(b.dataset.i)];
+  if (!it) return;
+  if (b.classList.contains('errRev')){ logCaderno('rev', it); toast(`Revisão de "${it.assunto}" registrada em ${fmtDM(todayStr())}.`); }
+  else if (b.classList.contains('errUndo')){ logCaderno('undo', it, {date:it.reviewedAt}); toast('Revisão desfeita.'); }
+  else if (b.classList.contains('errZero')){
+    askConfirm(`Marcar "${it.assunto}" como resolvido? Ele sai do caderno de erros.`, () => { logCaderno('zerar', it); toast('Assunto resolvido.'); });
+  }
+});
 
 // ---------- AGENDA DE SIMULADOS ----------
 let editingAgendaId = null, pendingAgendaId = null;
@@ -4260,7 +4508,15 @@ function applyConcursoTheme(){
     root.style.setProperty('--bg-tint', tint);
   }
   if (wm){
-    if (c && c.logo){ wm.style.backgroundImage = `url("${c.logo}")`; wm.style.display = 'block'; }
+    if (c && c.logo){
+      if (c.logoV !== 2) upgradeLogo(c);
+      const light = state.theme === 'light', lum = c.logoLum;
+      // logo escuro no tema escuro (ou claro no tema claro) viraria um borrão invisível: vira silhueta contrastante
+      let filter = 'none';
+      if (!light && lum != null && lum < .22) filter = 'brightness(0) invert(1)';
+      else if (light && lum != null && lum > .78) filter = 'brightness(0)';
+      wm.style.backgroundImage = `url("${c.logo}")`; wm.style.filter = filter; wm.style.display = 'block';
+    }
     else { wm.style.display = 'none'; wm.style.backgroundImage = ''; }
   }
 }
@@ -4269,27 +4525,93 @@ function ccThumb(c){
   if (c.cor) return `<span class="cc-dot" style="background:${c.cor}"></span>`;
   return '';
 }
-// reduz a imagem enviada (máx. ~220px) para ocupar pouco espaço no aparelho e na sincronização
-function shrinkImage(file, max){
+// Prepara a imagem do concurso: reduz, remove o fundo liso (se houver), recorta as sobras e mede a luminosidade.
+function lumRgb(r, g, b){
+  const f = v => { v /= 255; return v <= .03928 ? v/12.92 : Math.pow((v+.055)/1.055, 2.4); };
+  return .2126*f(r) + .7152*f(g) + .0722*f(b);
+}
+function cleanLogoCanvas(cv){
+  const w = cv.width, h = cv.height, ctx = cv.getContext('2d');
+  const img = ctx.getImageData(0, 0, w, h), d = img.data, orig = new Uint8ClampedArray(d);
+  const A = (x, y) => d[(y*w + x)*4 + 3];
+  const corners = [[0,0],[w-1,0],[0,h-1],[w-1,h-1]];
+  if (corners.filter(([x,y]) => A(x,y) < 12).length < 3){
+    const cs = corners.map(([x,y]) => { const i = (y*w+x)*4; return [d[i], d[i+1], d[i+2]]; });
+    const bg = [0,1,2].map(k => cs.reduce((a,c) => a + c[k], 0) / 4);
+    const dist = i => Math.sqrt((d[i]-bg[0])**2 + (d[i+1]-bg[1])**2 + (d[i+2]-bg[2])**2);
+    if (cs.every(c => Math.sqrt((c[0]-bg[0])**2 + (c[1]-bg[1])**2 + (c[2]-bg[2])**2) < 60)){
+      const TOL = 42, seen = new Uint8Array(w*h), q = new Int32Array(w*h);
+      let qh = 0, qt = 0;
+      const push = (x, y) => { const p = y*w + x; if (seen[p] || dist(p*4) > TOL) return; seen[p] = 1; q[qt++] = p; };
+      for (let x = 0; x < w; x++){ push(x, 0); push(x, h-1); }
+      for (let y = 0; y < h; y++){ push(0, y); push(w-1, y); }
+      while (qh < qt){
+        const p = q[qh++], x = p % w, y = (p / w) | 0;
+        d[p*4+3] = 0;
+        if (x > 0) push(x-1, y); if (x < w-1) push(x+1, y); if (y > 0) push(x, y-1); if (y < h-1) push(x, y+1);
+      }
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+        const p = y*w + x; if (seen[p]) continue;
+        if ((x>0 && seen[p-1]) || (x<w-1 && seen[p+1]) || (y>0 && seen[p-w]) || (y<h-1 && seen[p+w])){
+          const dd = dist(p*4);
+          if (dd < 110) d[p*4+3] = Math.round(Math.max(0, Math.min(1, (dd-TOL)/(110-TOL))) * 255);
+        }
+      }
+      let opaque = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 40) opaque++;
+      if (opaque < w*h*0.03) d.set(orig); // removeu quase tudo: desfaz
+    }
+  }
+  let minX = w, minY = h, maxX = -1, maxY = -1, sumL = 0, n = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+    const i = (y*w + x)*4, a = d[i+3];
+    if (a > 24){ if (x<minX) minX=x; if (x>maxX) maxX=x; if (y<minY) minY=y; if (y>maxY) maxY=y; }
+    if (a > 100){ sumL += lumRgb(d[i], d[i+1], d[i+2]); n++; }
+  }
+  if (maxX < 0) return {canvas: cv, lum: null};
+  ctx.putImageData(img, 0, 0);
+  const pad = 2, sx = Math.max(0, minX-pad), sy = Math.max(0, minY-pad);
+  const cw = Math.min(w, maxX+pad+1) - sx, ch = Math.min(h, maxY+pad+1) - sy;
+  const out = document.createElement('canvas'); out.width = cw; out.height = ch;
+  out.getContext('2d').drawImage(cv, sx, sy, cw, ch, 0, 0, cw, ch);
+  return {canvas: out, lum: n ? sumL/n : null};
+}
+function logoFromImage(img, max){
+  const iw = img.naturalWidth || img.width || max, ih = img.naturalHeight || img.height || max;
+  const k = Math.min(1, max / Math.max(iw, ih));
+  const w = Math.max(1, Math.round(iw*k)), h = Math.max(1, Math.round(ih*k));
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  cv.getContext('2d').drawImage(img, 0, 0, w, h);
+  const r = cleanLogoCanvas(cv);
+  let url = r.canvas.toDataURL('image/webp', .9);
+  if (!url.startsWith('data:image/webp')) url = r.canvas.toDataURL('image/png');
+  return {url, lum: r.lum};
+}
+function prepareLogo(file, max){
   return new Promise((resolve, reject) => {
     const fr = new FileReader();
     fr.onload = () => {
       const img = new Image();
-      img.onload = () => {
-        const k = Math.min(1, max / Math.max(img.width || max, img.height || max));
-        const w = Math.max(1, Math.round((img.width || max) * k)), h = Math.max(1, Math.round((img.height || max) * k));
-        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-        cv.getContext('2d').drawImage(img, 0, 0, w, h);
-        let url = cv.toDataURL('image/webp', .85);
-        if (!url.startsWith('data:image/webp')) url = cv.toDataURL('image/png');
-        resolve(url);
-      };
+      img.onload = () => { try { resolve(logoFromImage(img, max)); } catch(e){ reject(e); } };
       img.onerror = reject;
       img.src = fr.result;
     };
     fr.onerror = reject;
     fr.readAsDataURL(file);
   });
+}
+const logoUpgrading = new Set();
+// imagens enviadas antes desta versão: refaz o tratamento (fundo/recorte) uma vez
+function upgradeLogo(c){
+  if (!c.logo || c.logoV === 2 || logoUpgrading.has(c.id)) return;
+  logoUpgrading.add(c.id);
+  const img = new Image();
+  img.onload = () => {
+    try { const r = logoFromImage(img, 256); c.logo = r.url; c.logoLum = r.lum; c.logoV = 2; saveState(); applyConcursoTheme(); renderConcursoList(); }
+    catch(e){ c.logoV = 2; }
+    logoUpgrading.delete(c.id);
+  };
+  img.onerror = () => { c.logoV = 2; logoUpgrading.delete(c.id); };
+  img.src = c.logo;
 }
 
 // ---------- INSTALAR (PWA) ----------
@@ -4400,7 +4722,7 @@ if (state.activeConcursoId){
   }
 }
 renderDisciplinaRanking();
-renderRevisoes();
+renderRevisoes(); renderCaderno();
 fillManSubject(); renderManualLog();
 renderBackupInfo(); renderBackupBanner(); renderInstallInfo();
 fillFonteSelects(); renderFontesList();
