@@ -1041,7 +1041,7 @@ const todayStr = () => {
 };
 const DEFAULT_FONTES = ['Notebook LM','Gemini','YouTube','QConcursos'];
 const DEFAULT_FORMAS = ['Questões','Mapa mental','Resumo ativo'];
-const APP_URL = 'https://claude.ai/artifact/X3rhJ6Wxqek7JmH2SFYA6R';
+const APP_URL = 'https://alecmandev.github.io/Meus-Estudos/'; // endereço do app no GitHub Pages
 
 // alert()/confirm() são bloqueados dentro do artefato: usamos avisos e confirmação próprios
 let toastTimer = null;
@@ -1052,20 +1052,26 @@ function toast(msg, kind){
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.className = 'toast'; }, 4000);
 }
-let confirmCb = null;
-function askConfirm(msg, onYes){
+let confirmCb = null, confirmNoCb = null;
+// opts (opcional): {yes: 'texto do botão', no: 'texto do botão', onNo: função ao recusar}
+function askConfirm(msg, onYes, opts){
+  opts = opts || {};
+  syncConflictOpen = false; // uma nova pergunta substitui a anterior (inclusive a de conflito)
   document.getElementById('confirmMsg').textContent = msg;
-  confirmCb = onYes;
+  document.getElementById('confirmYes').textContent = opts.yes || 'Confirmar';
+  document.getElementById('confirmNo').textContent = opts.no || 'Cancelar';
+  confirmCb = onYes; confirmNoCb = opts.onNo || null;
   document.getElementById('confirmModal').classList.add('open');
 }
 document.getElementById('confirmYes').addEventListener('click', () => {
   document.getElementById('confirmModal').classList.remove('open');
-  const cb = confirmCb; confirmCb = null;
+  const cb = confirmCb; confirmCb = null; confirmNoCb = null;
   if (cb) cb();
 });
 document.getElementById('confirmNo').addEventListener('click', () => {
   document.getElementById('confirmModal').classList.remove('open');
-  confirmCb = null;
+  const cb = confirmNoCb; confirmCb = null; confirmNoCb = null;
+  if (cb) cb();
 });
 async function copyText(text){
   try { if (navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); return true; } } catch(e){}
@@ -1079,17 +1085,59 @@ async function copyText(text){
   } catch(e){ return false; }
 }
 
+// ---------- LIMPEZA DOS DADOS (backup importado / nuvem) ----------
+// Campos de texto livre ficam como foram digitados e são escapados (escHtml) na hora de exibir.
+// Nos demais campos (ids, datas, números, cores...) caracteres que poderiam virar código HTML são removidos.
+const TEXT_KEYS = new Set(['label','nome','assunto','disciplina','fonte','forma','tema','erros','obs','criterio','key','subjectLabel']);
+const TEXT_ARRAYS = new Set(['fontes','formasRevisao']);
+function safeLinkUrl(v){
+  let t = String(v || '').trim();
+  if (!t) return null;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(t)) t = 'https://' + t; // "www.site.com" vira "https://www.site.com"
+  try { const u = new URL(t); return (u.protocol === 'http:' || u.protocol === 'https:') ? u.href : null; }
+  catch(e){ return null; }
+}
+function safeImgUrl(v){
+  return (typeof v === 'string' && /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(v)) ? v : null;
+}
+function safeColor(v){
+  return (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v)) ? v : null;
+}
+function sanitizeData(v, key){
+  if (typeof v === 'string'){
+    if (key === 'logo') return safeImgUrl(v);
+    if (key === 'link') return safeLinkUrl(v);
+    if (key === 'color') return safeColor(v) || '#8FB6DE';
+    if (key === 'cor' || key === 'cor2') return safeColor(v);
+    if (TEXT_KEYS.has(key) || key === '#text') return v;
+    return v.replace(/[<>"'`]/g, '');
+  }
+  if (Array.isArray(v)) return v.map(x => sanitizeData(x, TEXT_ARRAYS.has(key) ? '#text' : key));
+  if (v && typeof v === 'object'){
+    const out = {};
+    Object.keys(v).forEach(k => {
+      if (k === '__proto__' || /[<>"'`]/.test(k)) return;
+      out[k] = sanitizeData(v[k], k);
+    });
+    return out;
+  }
+  return v;
+}
+
 function loadState(rawObj){
   let s = rawObj || null;
   if (!s){
     try { const raw = localStorage.getItem(KEY); if (raw) s = JSON.parse(raw); } catch(e){}
   }
+  if (s && typeof s === 'object') s = sanitizeData(s);
+  else s = null;
   if (!s){
     s = { date: todayStr(), subjects: defaultSubjects(), pomosToday:0, minutesToday:0, questoes:[], redacoes:[] };
   } else if (s.date !== todayStr()){
     s.date = todayStr();
     s.pomosToday = 0; s.minutesToday = 0; // contadores só de hoje; o progresso do ciclo NÃO reseta sozinho
   }
+  if (!Array.isArray(s.subjects)) s.subjects = defaultSubjects();
   if (!s.cycleStart) s.cycleStart = s.date;
   if (!Array.isArray(s.pomoLog)) s.pomoLog = [];
   if (!Array.isArray(s.cycleHistory)) s.cycleHistory = [];
@@ -1176,8 +1224,8 @@ function todaySubjectHours(){
   const map = {};
   const today = todayStr();
   const add = (subjectId, hours) => { map[subjectId] = (map[subjectId]||0) + hours; };
+  // registros manuais também entram no pomoLog (via addStudiedHours): somar o manualLog aqui contaria em dobro
   state.pomoLog.forEach(e => { if (e.date === today) add(e.subjectId, e.hours); });
-  state.manualLog.forEach(e => { if (e.date === today) add(e.subjectId, e.minutes/60); });
   return map;
 }
 // Verifica se todas as matérias com meta já bateram a meta; se sim, comemora e começa um novo ciclo.
@@ -1216,7 +1264,7 @@ function renderCicloStats(){
 }
 function saveState(){
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){}
-  if (state.syncCode && !syncApplyingRemote) scheduleCloudPush();
+  if (state.syncCode && !syncApplyingRemote){ syncMarkPending(); scheduleCloudPush(); }
 }
 function defaultSubjects(){
   const palette = ['#F2B705','#F7D154','#F0A324','#F08A24','#F2603D','#8FB6DE','#4C7FB8','#2F5C93'];
@@ -1224,6 +1272,9 @@ function defaultSubjects(){
                  'Atualidades','Raciocínio Lógico','Redação','Revisão'];
   return names.map((n,i) => ({id:'s'+i, label:n, goal:1.5, studied:0, color:palette[i%palette.length]}));
 }
+// Declarado antes do primeiro applyTheme(): ao abrir o app, o concurso ativo pode ter um logo antigo
+// que precisa ser reprocessado (upgradeLogo), e usar esta variável antes da declaração travava o app inteiro.
+const logoUpgrading = new Set();
 let state = loadState();
 
 // ---------- TEMA (claro/escuro) ----------
@@ -1291,7 +1342,7 @@ function renderRows(){
     div.innerHTML = `
       <div class="row-top">
         <div class="sw" style="background:${s.color}"></div>
-        <div class="label">${s.label}</div>
+        <div class="label">${escHtml(s.label)}</div>
         <input type="number" step="0.5" min="0" data-id="${s.id}" class="goalInput" value="${s.goal}"><span class="unit">h meta</span>
         <div class="reorder-btns">
           <button class="reorder-x" data-id="${s.id}" data-dir="-1" title="Mover para cima">▲</button>
@@ -1419,10 +1470,13 @@ function fillSubjectSelect(){
   fillManSubject();
   const sel = document.getElementById('subjectSelect');
   const current = sel.value;
-  sel.innerHTML = state.subjects.map(s=>`<option value="${s.id}">${s.label}</option>`).join('');
+  sel.innerHTML = state.subjects.map(s=>`<option value="${escHtml(s.id)}">${escHtml(s.label)}</option>`).join('');
   if (current) sel.value = current;
 }
 let workSec = 25*60, restSec = 5*60, remaining = workSec, mode='work', running=false, timerId=null;
+// Horário (ms) em que a fase atual termina. O tempo restante é sempre calculado a partir dele, então o
+// timer continua certo mesmo com a tela apagada ou o app em segundo plano (quando o celular pausa os tiques).
+let endAt = null;
 
 let audioCtx = null;
 function playBeep(freq){
@@ -1444,9 +1498,13 @@ function notifyModeChange(newMode){
 }
 
 function tick(){
-  remaining--;
-  if (remaining <= 0){
+  if (!running || endAt === null){ renderTime(); return; }
+  remaining = Math.max(0, Math.ceil((endAt - Date.now())/1000));
+  let switched = false;
+  // se o app ficou parado em segundo plano, pode ter passado mais de uma fase: processa todas
+  while (remaining <= 0){
     if (mode==='work'){
+      checkDayRollover();
       const subjId = document.getElementById('subjectSelect').value;
       const s = state.subjects.find(x=>x.id===subjId);
       if (s) { addStudiedHours(s, workSec/3600); updateRowVisual(s); }
@@ -1454,15 +1512,20 @@ function tick(){
       checkCycleComplete();
       saveState(); drawDonut(); renderRows(); updateStats();
       if (s) showLogPanel('pomo', s);
-      mode='rest'; remaining=restSec;
+      mode='rest'; endAt += restSec*1000;
     } else {
-      mode='work'; remaining=workSec;
+      mode='work'; endAt += workSec*1000;
     }
+    remaining = Math.max(0, Math.ceil((endAt - Date.now())/1000));
+    switched = true;
+  }
+  if (switched){
     notifyModeChange(mode);
     document.getElementById('pomoMode').textContent = mode==='work' ? 'FOCO' : 'PAUSA';
   }
   renderTime();
 }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && running) tick(); });
 function renderTime(){
   const m = Math.floor(remaining/60), s = remaining%60;
   const txt = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
@@ -1484,16 +1547,18 @@ function renderTime(){
 document.getElementById('startBtn').addEventListener('click', () => {
   if (running) return;
   running = true;
+  endAt = Date.now() + remaining*1000;
   timerId = setInterval(tick, 1000);
   renderTime();
 });
 document.getElementById('subjectSelect').addEventListener('change', () => renderTime());
 document.getElementById('pauseBtn').addEventListener('click', () => {
-  running = false; clearInterval(timerId);
+  if (running) tick();
+  running = false; clearInterval(timerId); endAt = null;
   renderTime();
 });
 document.getElementById('resetBtn').addEventListener('click', () => {
-  running = false; clearInterval(timerId);
+  running = false; clearInterval(timerId); endAt = null;
   mode='work'; remaining=workSec;
   document.getElementById('pomoMode').textContent='FOCO';
   renderTime();
@@ -1619,7 +1684,7 @@ function fillActiveConcursoOptions(){
   const sel = document.getElementById('activeConcursoSelect');
   const current = sel.value || state.activeConcursoId || '';
   sel.innerHTML = '<option value="">Nenhum definido</option>' +
-    state.concursos.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+    state.concursos.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.nome)}</option>`).join('');
   sel.value = state.concursos.find(c=>c.id===current) ? current : '';
 }
 fillActiveConcursoOptions();
@@ -1671,7 +1736,7 @@ function fillRankingConcursoFilter(){
   const sel = document.getElementById('rankingConcursoFilter');
   const current = sel.value;
   sel.innerHTML = '<option value="">Todos os simulados</option>' +
-    state.concursos.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+    state.concursos.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.nome)}</option>`).join('');
   if (state.concursos.find(c=>c.id===current)) sel.value = current;
 }
 document.getElementById('rankingConcursoFilter').addEventListener('change', renderDisciplinaRanking);
@@ -1698,7 +1763,7 @@ function renderDisciplinaRanking(){
     <div class="disc-item" style="cursor:default;">
       <div style="display:flex; align-items:center; gap:10px;">
         <div class="rank-num">${i+1}</div>
-        <div class="disc-name">${r.label}</div>
+        <div class="disc-name">${escHtml(r.label)}</div>
       </div>
       <div class="disc-nums">${r.acertos}/${r.questoes} questões · ${pctBadge(r.questoes, r.acertos)}</div>
     </div>
@@ -1818,7 +1883,7 @@ function renderDiscList(){
     const item = document.createElement('div');
     item.className = 'disc-item';
     item.innerHTML = `
-      <div class="disc-name">${s.label}</div>
+      <div class="disc-name">${escHtml(s.label)}</div>
       <div class="disc-nums">Questões ${total} | <b class="ok">Acertos ${acertos}</b> | <b class="bad">Erros ${erros}</b> ${pctBadge(total,acertos)}<span class="chev">▸</span></div>
     `;
     item.addEventListener('click', () => openDiscModal(s.label));
@@ -1845,7 +1910,7 @@ function openDiscModal(disciplina){
       const maxVal = Math.max(g.acertos, erros, 1);
       return `
         <div class="assunto-row">
-          <div class="aname">${assunto} — ${g.total} questões ${pctBadge(g.total, g.acertos)}</div>
+          <div class="aname">${escHtml(assunto)} — ${g.total} questões ${pctBadge(g.total, g.acertos)}</div>
           <div class="qbar-row">
             <div class="qbar-label">Acertos</div>
             <div class="qbar-track"><div class="qbar-fill" style="width:${g.acertos/maxVal*100}%; background:var(--ok)"></div></div>
@@ -2146,7 +2211,7 @@ function renderRedacoes(){
     const div = document.createElement('div');
     div.className = 'red-item';
     div.innerHTML = `
-      <div class="red-top"><div>${escHtml(r.tema)}</div><span>${r.nota}</span></div>
+      <div class="red-top"><div>${escHtml(r.tema)}</div><span>${escHtml(r.nota)}</span></div>
       <div class="red-meta">${r.date}</div>
       ${r.erros ? `<div class="red-erros">${escHtml(r.erros)}</div>` : ''}
       ${(r.anexos && r.anexos.length) ? `<div class="red-anexos">${r.anexos.map(a => anexoIsImg(a)
@@ -2275,7 +2340,7 @@ function renderBarChart(){
     const row = document.createElement('div');
     row.className = 'bar-row';
     row.innerHTML = `
-      <div class="bar-label">${s.label}</div>
+      <div class="bar-label">${escHtml(s.label)}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${pct}%; background:${s.color}"></div></div>
       <div class="bar-pct">${pct}%</div>
     `;
@@ -2286,7 +2351,7 @@ function renderBarChart(){
 function fillDisciplinaSelect(){
   const sel = document.getElementById('qDisciplina');
   const current = sel.value;
-  sel.innerHTML = state.subjects.map(s=>`<option value="${s.label}">${s.label}</option>`).join('');
+  sel.innerHTML = state.subjects.map(s=>`<option value="${escHtml(s.label)}">${escHtml(s.label)}</option>`).join('');
   if (current) sel.value = current;
 }
 
@@ -2344,7 +2409,7 @@ function renderQuestoesDoDia(){
     if (q.date !== todayStr()) return;
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${q.assunto}</strong><div class="q-meta">${q.disciplina} | ${q.fonte}</div></td>
+      <td><strong>${escHtml(q.assunto)}</strong><div class="q-meta">${escHtml(q.disciplina)} | ${escHtml(q.fonte)}</div></td>
       <td class="num">${q.questoes}</td>
       <td class="num">${q.acertos}</td>
       <td><button class="del-btn" data-idx="${idx}">✕</button></td>
@@ -2378,7 +2443,7 @@ function renderBarList(containerId, items, maxOverride){
     const row = document.createElement('div');
     row.className = 'bar-row';
     row.innerHTML = `
-      <div class="bar-label">${item.label}</div>
+      <div class="bar-label">${escHtml(item.label)}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${pct}%; background:var(--gold)"></div></div>
       <div class="bar-pct">${fmtH(item.value)}</div>
     `;
@@ -2614,7 +2679,7 @@ function fillSimConcursoOptions(){
   const sel = document.getElementById('simConcursoSelect');
   const current = sel.value;
   sel.innerHTML = '<option value="">Manual (baseado no Ciclo de Estudos)</option>' +
-    state.concursos.map(c => `<option value="${c.id}">${c.nome} ${c.status==='pre'?'(pré-edital)':''}</option>`).join('');
+    state.concursos.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.nome)} ${c.status==='pre'?'(pré-edital)':''}</option>`).join('');
   if (state.concursos.find(c=>c.id===current)) sel.value = current;
 }
 function getSimFormSource(concursoId){
@@ -2658,12 +2723,12 @@ function renderSimRedacaoModelo(concursoId, prefill){
     return;
   }
   el.innerHTML = `
-    <div style="margin:14px 0 6px; font-size:10.5px; text-transform:uppercase; color:var(--dim);">Correção da redação — modelo ${c.nome}</div>
+    <div style="margin:14px 0 6px; font-size:10.5px; text-transform:uppercase; color:var(--dim);">Correção da redação — modelo ${escHtml(c.nome)}</div>
     ${modelo.map(m => {
       const pre = prefill && prefill.find(p => p.criterio === m.criterio);
       return `<div style="display:grid; grid-template-columns:1fr 70px 46px; gap:8px; align-items:center; margin-bottom:8px;">
-        <div style="font-size:13px;">${m.criterio}</div>
-        <input type="number" min="0" max="${m.max}" step="0.1" class="simCrit" data-crit="${m.criterio}" data-max="${m.max}" value="${pre ? pre.nota : ''}" style="text-align:center;">
+        <div style="font-size:13px;">${escHtml(m.criterio)}</div>
+        <input type="number" min="0" max="${m.max}" step="0.1" class="simCrit" data-crit="${escHtml(m.criterio)}" data-max="${m.max}" value="${pre ? pre.nota : ''}" style="text-align:center;">
         <div style="font-size:12px; color:var(--dim);">/ ${m.max}</div>
       </div>`;
     }).join('')}`;
@@ -2700,9 +2765,9 @@ function renderSimDisciplinasForm(prefill, concursoId){
     </div>
     ${rows.map(s => `
       <div style="display:grid; grid-template-columns:1fr 70px 70px; gap:8px; align-items:center; margin-bottom:8px;">
-        <div style="font-size:13px; display:flex; align-items:center; gap:6px;"><span class="sw" style="background:${s.color}"></span>${s.label}</div>
-        <input type="number" min="0" class="simQ" data-label="${s.label}" value="${s.questoes||0}" style="text-align:center;">
-        <input type="number" min="0" class="simA" data-label="${s.label}" value="${s.acertos||0}" style="text-align:center;">
+        <div style="font-size:13px; display:flex; align-items:center; gap:6px;"><span class="sw" style="background:${s.color}"></span>${escHtml(s.label)}</div>
+        <input type="number" min="0" class="simQ" data-label="${escHtml(s.label)}" value="${s.questoes||0}" style="text-align:center;">
+        <input type="number" min="0" class="simA" data-label="${escHtml(s.label)}" value="${s.acertos||0}" style="text-align:center;">
       </div>`).join('')}
   `;
 }
@@ -2740,7 +2805,7 @@ document.getElementById('addSimBtn').addEventListener('click', () => {
   document.querySelectorAll('.simQ').forEach(inp => {
     const label = inp.dataset.label;
     const questoes = Math.max(0, parseInt(inp.value)||0);
-    const acertosInp = document.querySelector(`.simA[data-label="${label}"]`);
+    const acertosInp = document.querySelector(`.simA[data-label="${CSS.escape(label)}"]`);
     const acertos = Math.max(0, Math.min(questoes, parseInt(acertosInp.value)||0));
     if (questoes > 0) disciplinas.push({label, questoes, acertos});
   });
@@ -2845,7 +2910,7 @@ function renderSimulados(){
     const concursoNome = r.concursoId ? (state.concursos.find(c=>c.id===r.concursoId)||{}).nome : null;
     const ritmoHtml = simRitmoHtml(r, total);
     tr.innerHTML = `
-      <td><strong>${r.nome}</strong><div class="q-meta">${r.date}${r.tempo?` · ${r.tempo}min`:''}${concursoNome?` · ${concursoNome}`:''}${r.notaRedacao!=null?` · Redação: ${r.notaRedacao}`:''}</div>${statusLine?`<div class="q-meta" style="margin-top:4px;">${statusLine}</div>`:''}${ritmoHtml?`<div class="q-meta" style="margin-top:4px;">${ritmoHtml}</div>`:''}</td>
+      <td><strong>${escHtml(r.nome)}</strong><div class="q-meta">${r.date}${r.tempo?` · ${r.tempo}min`:''}${concursoNome?` · ${escHtml(concursoNome)}`:''}${r.notaRedacao!=null?` · Redação: ${r.notaRedacao}`:''}</div>${statusLine?`<div class="q-meta" style="margin-top:4px;">${statusLine}</div>`:''}${ritmoHtml?`<div class="q-meta" style="margin-top:4px;">${ritmoHtml}</div>`:''}</td>
       <td class="num">${acertos}/${total}</td>
       <td class="num">${pct}%</td>
       <td>
@@ -2901,7 +2966,7 @@ function drawSimDisciplinaLine(){
     svg.appendChild(t);
     return;
   }
-  legend.innerHTML = labels.map(l => `<span><span class="legend-dot" style="background:${colorFor[l]}"></span>${l}</span>`).join('');
+  legend.innerHTML = labels.map(l => `<span><span class="legend-dot" style="background:${colorFor[l]}"></span>${escHtml(l)}</span>`).join('');
 
   const N = state.simulados.length;
   const W=480, H=160, padL=28, padR=14, padT=16, padB=24;
@@ -2945,7 +3010,7 @@ function openSimModal(idx){
     const maxVal = Math.max(d.acertos, erros, 1);
     return `
       <div class="assunto-row">
-        <div class="aname">${d.label} — ${d.questoes} questões ${pctBadge(d.questoes, d.acertos)}</div>
+        <div class="aname">${escHtml(d.label)} — ${d.questoes} questões ${pctBadge(d.questoes, d.acertos)}</div>
         <div class="qbar-row">
           <div class="qbar-label">Acertos</div>
           <div class="qbar-track"><div class="qbar-fill" style="width:${d.acertos/maxVal*100}%; background:var(--ok)"></div></div>
@@ -2966,7 +3031,7 @@ function openSimModal(idx){
   const critBlock = (r.redacaoCriterios && r.redacaoCriterios.length) ? `
     <div class="assunto-row"><div class="aname">Correção da redação</div>
       ${r.redacaoCriterios.map(k => `<div class="qbar-row">
-        <div class="qbar-label" style="width:110px;">${k.criterio}</div>
+        <div class="qbar-label" style="width:110px;">${escHtml(k.criterio)}</div>
         <div class="qbar-track"><div class="qbar-fill" style="width:${k.max>0?k.nota/k.max*100:0}%; background:var(--gold)"></div></div>
         <div class="qbar-val" style="width:52px;">${k.nota}/${k.max}</div>
       </div>`).join('')}
@@ -3045,7 +3110,7 @@ document.getElementById('addConcursoBtn').addEventListener('click', () => {
   const area = document.getElementById('ccArea').value;
   const status = document.getElementById('ccStatus').value;
   const data = document.getElementById('ccData').value || null;
-  const link = document.getElementById('ccLink').value.trim() || null;
+  const link = safeLinkUrl(document.getElementById('ccLink').value);
   const obs = document.getElementById('ccObs').value.trim();
   const notaCorteRaw = document.getElementById('ccNotaCorte').value;
   const notaCorte = notaCorteRaw !== '' ? Math.max(0, parseInt(notaCorteRaw)||0) : null;
@@ -3171,8 +3236,8 @@ function renderConcursoModalBody(c){
       <span class="status-badge ${c.status}">${c.status==='pre'?'Pré-edital':'Pós-edital'}</span>
       <div class="q-meta" style="margin-top:6px;">Data: ${dataTxt}</div>
       ${c.tempoProva ? `<div class="q-meta">Duração da prova: ${c.tempoProva} min${totalQ>0?` · ${(c.tempoProva/totalQ).toFixed(1)} min por questão`:''}</div>` : ''}
-      ${c.link ? `<div class="q-meta"><a href="${c.link}" target="_blank" style="color:#8FB6DE;">Link do edital ↗</a></div>` : ''}
-      ${c.obs ? `<div class="q-meta" style="margin-top:6px; white-space:pre-wrap;">${c.obs}</div>` : ''}
+      ${c.link ? `<div class="q-meta"><a href="${escHtml(c.link)}" target="_blank" rel="noopener noreferrer" style="color:#8FB6DE;">Link do edital ↗</a></div>` : ''}
+      ${c.obs ? `<div class="q-meta" style="margin-top:6px; white-space:pre-wrap;">${escHtml(c.obs)}</div>` : ''}
       <div style="display:flex; gap:8px; margin-top:10px;">
         <button class="btn ghost small" id="editCcBtn">Editar dados</button>
         <button class="btn ghost small" id="delCcBtn" style="color:var(--bad);">Excluir concurso</button>
@@ -3205,7 +3270,7 @@ function renderConcursoModalBody(c){
       <tbody>
         ${c.disciplinas.map((d,i) => `
           <tr>
-            <td>${d.nome}</td>
+            <td>${escHtml(d.nome)}</td>
             <td class="num">${d.questoes}</td>
             <td class="num">${d.peso}</td>
             <td class="num">${(d.questoes*d.peso).toFixed(1)}</td>
@@ -3227,7 +3292,7 @@ function renderConcursoModalBody(c){
       <thead><tr><th>Critério</th><th class="num">Pontos máx.</th><th></th></tr></thead>
       <tbody>
         ${c.redacaoModelo.map((m,i) => `
-          <tr><td>${m.criterio}</td><td class="num">${m.max}</td>
+          <tr><td>${escHtml(m.criterio)}</td><td class="num">${m.max}</td>
           <td><button class="del-btn ccCritDel" data-idx="${i}">✕</button></td></tr>`).join('')}
         ${c.redacaoModelo.length ? `<tr class="total"><td>Total</td><td class="num">${totalCrit}</td><td></td></tr>` : ''}
       </tbody>
@@ -3320,7 +3385,7 @@ function fillRevDisciplinaSelect(){
   const sel = document.getElementById('revDisciplina');
   if (!sel) return;
   const current = sel.value;
-  sel.innerHTML = state.subjects.map(s=>`<option value="${s.label}">${s.label}</option>`).join('');
+  sel.innerHTML = state.subjects.map(s=>`<option value="${escHtml(s.label)}">${escHtml(s.label)}</option>`).join('');
   if (current) sel.value = current;
 }
 document.getElementById('revData').value = todayStr();
@@ -4408,8 +4473,8 @@ function computeReportStats(start, end){
     metaHoras += goalFor(d).h;
   }
   const horasPorId = {};
+  // o pomoLog já inclui os registros manuais (ver addStudiedHours)
   state.pomoLog.forEach(e => { if (inRange(e.date)) horasPorId[e.subjectId] = (horasPorId[e.subjectId]||0) + e.hours; });
-  state.manualLog.forEach(e => { if (inRange(e.date)) horasPorId[e.subjectId] = (horasPorId[e.subjectId]||0) + e.minutes/60; });
   const horasPorDiscList = state.subjects
     .map(s => ({label:s.label, color:s.color, h: horasPorId[s.id] || 0}))
     .filter(x => x.h > 0).sort((a,b) => b.h - a.h);
@@ -4525,8 +4590,25 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "28837461382",
   appId: "1:28837461382:web:354474aecd0cff2fc9c007"
 };
-let syncDb = null, syncAuthReady = null, syncUnsub = null, syncPushTimer = null;
-let syncApplyingRemote = false, lastPushedJson = null, lastAppliedJson = null;
+var syncDb = null, syncAuthReady = null, syncUnsub = null, syncPushTimer = null;
+var syncApplyingRemote = false, syncPushingJson = null, syncLocalVersion = 0, syncConflictOpen = false;
+var syncOwnPushes = new Set();
+// Para não perder dados, o app guarda no aparelho:
+// - "pendente": existe mudança feita aqui que a nuvem ainda não confirmou;
+// - "base": assinatura da última versão que este aparelho e a nuvem tinham em comum.
+var SYNC_PENDING_KEY = 'estudo_sync_pending', SYNC_BASE_KEY = 'estudo_sync_base';
+function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function lsSet(k, v){ try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch(e){} }
+function hashStr(str){
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++){ const ch = str.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(36) + '-' + (h1 >>> 0).toString(36);
+}
+function syncHasPending(){ return lsGet(SYNC_PENDING_KEY) === '1'; }
+function syncMarkPending(){ syncLocalVersion++; lsSet(SYNC_PENDING_KEY, '1'); }
+function syncSetBase(json){ lsSet(SYNC_BASE_KEY, json === null ? null : hashStr(json)); }
 
 function syncErrorText(e){
   const code = (e && (e.code || e.message)) ? String(e.code || e.message) : 'desconhecido';
@@ -4598,20 +4680,40 @@ function syncPayloadJson(){
   delete payload.syncCode; delete payload.syncEnabled;
   return JSON.stringify(payload);
 }
-async function syncPushNow(){
+// force = true só quando a pessoa escolheu "manter os deste aparelho" num conflito.
+async function syncPushNow(force){
   if (!state.syncCode || !syncDb) return false;
+  const code = state.syncCode;
+  let json = null;
   try {
     await syncAuthReady;
-    const json = syncPayloadJson();
+    json = syncPayloadJson();
     if (json.length > 950000){ setSyncStatus('Dados grandes demais', true); setSyncDetail('Reduza/remova imagens dos concursos (limite do banco: ~1 MB).', true); return false; }
-    lastPushedJson = json;
-    await syncDb.collection('syncs').doc(state.syncCode).set({
-      data: json, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    const version = syncLocalVersion;
+    syncPushingJson = json;
+    // Transação: confere a nuvem antes de gravar. Se outro aparelho mudou os dados desde a última
+    // sincronização, não sobrescreve; em vez disso, trata como conflito. Sem internet, falha e o
+    // envio continua pendente para a próxima tentativa.
+    let conflictJson = null;
+    const ref = syncDb.collection('syncs').doc(code);
+    await syncDb.runTransaction(async tx => {
+      conflictJson = null;
+      const doc = await tx.get(ref);
+      const remote = doc.exists ? (doc.data() || {}).data : null;
+      if (!force && remote && remote !== json && hashStr(remote) !== lsGet(SYNC_BASE_KEY)){ conflictJson = remote; return; }
+      tx.set(ref, { data: json, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     });
+    if (code !== state.syncCode) return false;
+    if (conflictJson){ syncPushingJson = null; syncAskConflict(conflictJson, code); return false; }
+    // só depois que a nuvem confirmou: esta passa a ser a versão em comum
+    syncSetBase(json);
+    syncOwnPushes.add(hashStr(json));
+    if (version === syncLocalVersion && !syncPushTimer) lsSet(SYNC_PENDING_KEY, null);
     syncMarkOk('Enviado');
     anexosEnviarPendentes();
     return true;
   } catch(e){ syncFail(e); return false; }
+  finally { if (json !== null && syncPushingJson === json) syncPushingJson = null; }
 }
 function scheduleCloudPush(){
   if (!state.syncCode) return;
@@ -4619,25 +4721,71 @@ function scheduleCloudPush(){
   setSyncStatus('Sincronizando…');
   syncPushTimer = setTimeout(() => { syncPushTimer = null; syncPushNow(); }, 1500);
 }
+function syncPushImmediately(force){
+  clearTimeout(syncPushTimer); syncPushTimer = null;
+  return syncPushNow(force);
+}
 function applyRemoteJson(json, code){
   const parsed = JSON.parse(json);
   syncApplyingRemote = true;
   try {
+    clearTimeout(syncPushTimer); syncPushTimer = null;
     state = loadState({...parsed, syncCode: code, syncEnabled: true});
-    lastAppliedJson = json;
+    syncSetBase(json);
+    lsSet(SYNC_PENDING_KEY, null);
     saveState();
     refreshAll();
   } finally { syncApplyingRemote = false; }
+}
+// Compara a versão da nuvem com a deste aparelho sem nunca descartar mudanças locais em silêncio:
+// - iguais: nada a fazer;
+// - só a nuvem mudou: traz para cá;
+// - só este aparelho mudou: envia para a nuvem;
+// - os dois mudaram: pergunta qual versão manter.
+function syncReconcile(json, code){
+  if (!json || code !== state.syncCode) return;
+  if (json === syncPushingJson) return; // eco do envio que este aparelho está fazendo
+  const h = hashStr(json);
+  const base = lsGet(SYNC_BASE_KEY);
+  if (syncOwnPushes.has(h) && h !== base) return; // eco atrasado de um envio antigo deste aparelho
+  if (json === syncPayloadJson()){
+    syncSetBase(json);
+    if (!syncPushTimer) lsSet(SYNC_PENDING_KEY, null);
+    syncMarkOk('Sincronizado');
+    return;
+  }
+  if (!syncHasPending()){
+    applyRemoteJson(json, code);
+    syncMarkOk('Atualizado de outro aparelho');
+    return;
+  }
+  if (h === base){ syncPushImmediately(); return; }
+  syncAskConflict(json, code);
+}
+function syncAskConflict(json, code){
+  if (syncConflictOpen) return;
+  setSyncStatus('Escolha qual versão manter', true);
+  askConfirm('Os dados mudaram neste aparelho e em outro antes de sincronizar. Qual versão você quer manter? A outra será substituída.',
+    () => {
+      syncConflictOpen = false;
+      try { applyRemoteJson(json, code); syncMarkOk('Atualizado da nuvem'); toast('Mantidos os dados da nuvem.'); }
+      catch(e){ syncFail(e); }
+    },
+    { yes: 'Usar os da nuvem', no: 'Manter os deste aparelho',
+      onNo: () => {
+        syncConflictOpen = false;
+        syncPushImmediately(true).then(ok => { if (ok) toast('Mantidos os dados deste aparelho.'); });
+      } });
+  syncConflictOpen = true;
 }
 function syncListen(code){
   if (!syncDb) return;
   if (syncUnsub) syncUnsub();
   syncUnsub = syncDb.collection('syncs').doc(code).onSnapshot(snap => {
-    if (!snap.exists) return;
+    if (!snap.exists || snap.metadata.hasPendingWrites) return;
     const remote = snap.data();
-    if (!remote || !remote.data || remote.data === lastPushedJson || remote.data === lastAppliedJson) return;
-    if (syncPushTimer) return; // há mudanças locais ainda não enviadas: não sobrescrever
-    try { applyRemoteJson(remote.data, code); syncMarkOk('Atualizado de outro aparelho'); }
+    if (!remote || !remote.data) return;
+    try { syncReconcile(remote.data, code); }
     catch(e){ syncFail(e); }
   }, err => syncFail(err));
 }
@@ -4650,31 +4798,38 @@ async function syncStart(code){
 // Busca a versão da nuvem diretamente do servidor (útil ao voltar para o app no celular).
 async function syncPullNow(silent){
   if (!state.syncCode || !syncDb) return;
+  const code = state.syncCode;
   try {
     await syncAuthReady;
-    const snap = await syncDb.collection('syncs').doc(state.syncCode).get({source:'server'});
+    const snap = await syncDb.collection('syncs').doc(code).get({source:'server'});
     if (!snap.exists || !snap.data().data){
-      if (!silent) toast('Ainda não há dados na nuvem para este código.', 'err');
+      if (syncHasPending()) syncPushImmediately(); // nuvem vazia: envia o que existe aqui
+      else if (!silent) toast('Ainda não há dados na nuvem para este código.', 'err');
       return;
     }
     const json = snap.data().data;
-    if (json === lastPushedJson || json === lastAppliedJson || json === syncPayloadJson()){ syncMarkOk('Já está atualizado'); if (!silent) toast('Este aparelho já está igual à nuvem.'); return; }
-    if (syncPushTimer) return;
-    if (silent){ applyRemoteJson(json, state.syncCode); syncMarkOk('Atualizado da nuvem'); }
-    else askConfirm('Trazer os dados da nuvem para este aparelho? Isso substitui o que está aqui.', () => {
-      try { applyRemoteJson(json, state.syncCode); syncMarkOk('Atualizado da nuvem'); toast('Dados da nuvem carregados.'); } catch(e){ syncFail(e); }
+    if (silent){ syncReconcile(json, code); return; }
+    if (json === syncPayloadJson()){ syncSetBase(json); syncMarkOk('Já está atualizado'); toast('Este aparelho já está igual à nuvem.'); return; }
+    askConfirm('Trazer os dados da nuvem para este aparelho? Isso substitui o que está aqui.', () => {
+      try { applyRemoteJson(json, code); syncMarkOk('Atualizado da nuvem'); toast('Dados da nuvem carregados.'); } catch(e){ syncFail(e); }
     });
   } catch(e){ syncFail(e); if (!silent) toast('Não foi possível buscar da nuvem. Veja o detalhe em vermelho.', 'err'); }
+}
+function syncResetLocalMarks(){
+  lsSet(SYNC_PENDING_KEY, null); syncSetBase(null);
+  syncOwnPushes.clear();
 }
 async function syncCreate(){
   if (!syncInitFirebase()){ toast('Não foi possível carregar a sincronização agora. Verifique sua internet e tente de novo.', 'err'); return; }
   const code = genSyncCode();
+  syncResetLocalMarks();
   state.syncCode = code; state.syncEnabled = true;
   saveState(); renderSyncUI();
   setSyncStatus('Criando…');
-  const ok = await syncPushNow();
-  if (ok){ syncListen(code); toast(`Código criado: ${code}. Anote para conectar o outro aparelho.`); }
-  else toast('O código foi criado, mas o envio falhou. Veja o detalhe em vermelho.', 'err');
+  const ok = await syncPushImmediately();
+  syncListen(code);
+  if (ok) toast(`Código criado: ${code}. Anote para conectar o outro aparelho.`);
+  else toast('O código foi criado, mas o envio falhou. Ele será enviado quando a conexão voltar.', 'err');
 }
 async function syncJoin(codeRaw){
   const code = (codeRaw||'').trim().toUpperCase();
@@ -4684,6 +4839,7 @@ async function syncJoin(codeRaw){
     await syncAuthReady;
     const snap = await syncDb.collection('syncs').doc(code).get({source:'server'});
     const finishJoin = importRemote => {
+      syncResetLocalMarks();
       if (importRemote && snap.exists && snap.data().data){
         applyRemoteJson(snap.data().data, code);
       } else {
@@ -4691,7 +4847,7 @@ async function syncJoin(codeRaw){
         saveState();
       }
       renderSyncUI(); syncListen(code);
-      if (!importRemote) syncPushNow(); else syncMarkOk('Conectado');
+      if (!importRemote) syncPushImmediately(); else syncMarkOk('Conectado');
       toast('Conectado! Os dados vão sincronizar automaticamente.');
     };
     if (snap.exists && snap.data().data){
@@ -4703,7 +4859,9 @@ async function syncJoin(codeRaw){
 }
 function syncDisconnect(){
   if (syncUnsub){ syncUnsub(); syncUnsub = null; }
+  clearTimeout(syncPushTimer); syncPushTimer = null;
   state.syncCode = null; state.syncEnabled = false;
+  syncResetLocalMarks();
   saveState(); renderSyncUI();
   toast('Sincronização desligada neste aparelho. Os dados já salvos na nuvem continuam lá.');
 }
@@ -4712,9 +4870,8 @@ document.getElementById('syncJoinBtn').addEventListener('click', () => syncJoin(
 document.getElementById('syncJoinInput').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); document.getElementById('syncJoinBtn').click(); } });
 document.getElementById('syncPushBtn').addEventListener('click', async () => {
   if (!syncDb && !syncInitFirebase()){ toast('O Firebase não carregou. Veja o detalhe em vermelho.', 'err'); return; }
-  clearTimeout(syncPushTimer); syncPushTimer = null;
   setSyncStatus('Enviando…');
-  const ok = await syncPushNow();
+  const ok = await syncPushImmediately();
   toast(ok ? 'Dados enviados para a nuvem.' : 'Falha ao enviar. Veja o detalhe em vermelho.', ok ? undefined : 'err');
 });
 document.getElementById('syncPullBtn').addEventListener('click', () => {
@@ -4724,14 +4881,19 @@ document.getElementById('syncPullBtn').addEventListener('click', () => {
 document.getElementById('syncDisconnectBtn').addEventListener('click', () => {
   askConfirm('Desconectar a sincronização neste aparelho? Os dados já salvos na nuvem continuam lá, e você pode reconectar com o mesmo código.', syncDisconnect);
 });
-// Ao sair do app, envia na hora o que estiver pendente; ao voltar, busca a versão mais nova da nuvem.
+// Ao sair do app, envia na hora o que estiver pendente; ao voltar, confere a versão da nuvem.
 document.addEventListener('visibilitychange', () => {
   if (!state.syncCode || !syncDb) return;
   if (document.visibilityState === 'hidden'){
-    if (syncPushTimer){ clearTimeout(syncPushTimer); syncPushTimer = null; syncPushNow(); }
+    if (syncPushTimer) syncPushImmediately();
   } else {
     syncPullNow(true);
   }
+});
+// Quando a internet volta, confere a nuvem: envia o que ficou pendente ou traz o que mudou lá.
+window.addEventListener('online', () => {
+  if (!state.syncCode || !syncDb) return;
+  syncPullNow(true);
 });
 
 // ---------- TEMA DO CONCURSO ATIVO (cores + marca-d'água) ----------
@@ -4866,7 +5028,6 @@ function prepareLogo(file, max){
     fr.readAsDataURL(file);
   });
 }
-const logoUpgrading = new Set();
 // imagens enviadas antes desta versão: refaz o tratamento (fundo/recorte) uma vez
 function upgradeLogo(c){
   if (!c.logo || c.logoV === 2 || logoUpgrading.has(c.id)) return;
@@ -4899,7 +5060,7 @@ function renderInstallInfo(){
       1. Toque em <b>Copiar link do app</b>.<br>
       2. Cole o link no ${isIOS ? 'Safari' : 'Chrome'} do celular.<br>
       3. ${isIOS ? 'Toque em Compartilhar (□↑) → <b>Adicionar à Tela de Início</b>.' : 'Abra o menu (⋮) → <b>Adicionar à tela inicial</b>.'}<br>
-      <span style="color:var(--dim);">O atalho abre o app pelo link, e será preciso estar logado no Claude. Os dados ficam separados por navegador: use Exportar/Importar para levar seu progresso.</span>`;
+      <span style="color:var(--dim);">O link abre o app publicado no GitHub Pages, que funciona offline e pode ser instalado. Os dados ficam separados por navegador: use Exportar/Importar para levar seu progresso.</span>`;
   } else {
     el.innerHTML = isIOS
       ? 'No Safari: toque em Compartilhar (□↑) → <b>Adicionar à Tela de Início</b>.'
@@ -4928,7 +5089,7 @@ function fillManSubject(){
   const sel = document.getElementById('manSubject');
   if (!sel) return;
   const current = sel.value;
-  sel.innerHTML = state.subjects.map(s => `<option value="${s.id}">${s.label}</option>`).join('');
+  sel.innerHTML = state.subjects.map(s => `<option value="${escHtml(s.id)}">${escHtml(s.label)}</option>`).join('');
   if (state.subjects.find(s => s.id === current)) sel.value = current;
 }
 function afterStudyChange(){
@@ -4962,7 +5123,7 @@ function renderManualLog(){
   el.innerHTML = items.map(m => {
     const s = state.subjects.find(x => x.id === m.subjectId);
     return `<div class="disc-item" style="cursor:default;">
-      <div class="disc-name">${s ? s.label : 'Matéria removida'}</div>
+      <div class="disc-name">${s ? escHtml(s.label) : 'Matéria removida'}</div>
       <div class="disc-nums">${fmtMin(m.minutes)} <button class="del-btn manDel" data-id="${m.id}">✕</button></div></div>`;
   }).join('') + `<div class="q-meta" style="text-align:right;">Total manual hoje: <b>${fmtMin(total)}</b></div>`;
   el.querySelectorAll('.manDel').forEach(b => b.addEventListener('click', e => {
@@ -4970,10 +5131,22 @@ function renderManualLog(){
     if (!m) return;
     const s = state.subjects.find(x => x.id === m.subjectId);
     removeStudiedHours(s, m.minutes/60, m.date);
-    state.pomoLog = state.pomoLog.filter(e => !(e.date===m.date && e.subjectId===m.subjectId && Math.abs(e.hours-m.minutes/60)<1e-9));
+    // remove só UMA entrada correspondente (pode haver outras iguais, de pomodoros ou de outros registros)
+    const li = state.pomoLog.findIndex(e => e.date===m.date && e.subjectId===m.subjectId && Math.abs(e.hours-m.minutes/60)<1e-9);
+    if (li >= 0) state.pomoLog.splice(li, 1);
     state.manualLog = state.manualLog.filter(x => x.id !== m.id);
     afterStudyChange(); renderManualLog();
   }));
+}
+
+// Virada do dia com o app aberto: zera os contadores "de hoje" (o progresso do ciclo não muda).
+// Não salva aqui de propósito: a próxima mudança real salva; assim dois aparelhos sincronizados
+// não geram um falso conflito à meia-noite.
+function checkDayRollover(){
+  if (state.date === todayStr()) return;
+  state.date = todayStr();
+  state.pomosToday = 0; state.minutesToday = 0;
+  refreshAll();
 }
 
 // ---------- INIT ----------
@@ -5001,7 +5174,8 @@ renderSyncUI();
 if (state.syncCode && state.syncEnabled){
   if (syncInitFirebase()) syncStart(state.syncCode);
 }
-setInterval(() => { renderAgendaBanner(); renderProxSim(); renderReportBanner(); }, 60000);
+setInterval(() => { checkDayRollover(); renderAgendaBanner(); renderProxSim(); renderReportBanner(); }, 60000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkDayRollover(); });
 </script>
 <script>
 if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
