@@ -213,6 +213,15 @@ try {
   .red-item .red-meta{font-size:11px; color:var(--dim); margin-top:2px;}
   .red-item .red-erros{font-size:12px; color:var(--dim); margin-top:6px; white-space:pre-wrap;}
   .red-item .red-actions{display:flex; gap:10px; margin-top:8px;}
+  /* redação recolhida: só tema, nota e data; o resto abre ao tocar */
+  .red-item .red-head{cursor:pointer; -webkit-tap-highlight-color:transparent;}
+  .red-item .red-head:focus-visible{outline:2px solid var(--gold); outline-offset:4px; border-radius:6px;}
+  .red-item .red-head .red-meta{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .red-item .red-tag{font-size:10.5px; color:var(--dim); border:1px solid var(--line); border-radius:999px; padding:1px 7px;}
+  .red-item .red-chev{margin-left:auto; font-size:11px; color:var(--dim); transition:transform .2s;}
+  .red-item.open .red-chev{transform:rotate(180deg);}
+  .red-item .red-body{display:none; margin-top:6px; padding-top:6px; border-top:1px solid var(--line);}
+  .red-item.open .red-body{display:block;}
   .red-item .red-actions button{background:transparent; border:1px solid var(--line); color:var(--dim);
       border-radius:7px; padding:4px 10px; font-size:11.5px; cursor:pointer;}
   .red-item .red-actions button.del{color:var(--bad);}
@@ -2273,15 +2282,23 @@ function deleteRed(idx){
   saveState(); renderRedacoes();
 }
 
+// Redações abertas (expandidas) nesta sessão, identificadas por data + tema.
+const redOpen = new Set();
+const redKey = r => r.date + '|' + r.tema;
 function renderRedacoes(){
   const list = document.getElementById('redList');
   list.innerHTML = '';
   state.redacoes.map((r,i)=>({r,i})).slice().reverse().forEach(({r,i}) => {
     const div = document.createElement('div');
-    div.className = 'red-item';
+    const nAnx = (r.anexos || []).length;
+    div.className = 'red-item' + (redOpen.has(redKey(r)) ? ' open' : '');
+    div.dataset.key = redKey(r);
     div.innerHTML = `
-      <div class="red-top"><div>${escHtml(r.tema)}</div><span>${escHtml(r.nota)}</span></div>
-      <div class="red-meta">${r.date}</div>
+      <div class="red-head" role="button" tabindex="0" aria-expanded="${redOpen.has(redKey(r))}">
+        <div class="red-top"><div>${escHtml(r.tema)}</div><span>${escHtml(r.nota)}</span></div>
+        <div class="red-meta">${escHtml(r.date)}${r.erros ? '<span class="red-tag">📝 correção</span>' : ''}${nAnx ? `<span class="red-tag">📎 ${nAnx}</span>` : ''}<span class="red-chev">▾</span></div>
+      </div>
+      <div class="red-body">
       ${r.erros ? `<div class="red-erros">${escHtml(r.erros)}</div>` : ''}
       ${(r.anexos && r.anexos.length) ? `<div class="red-anexos">${r.anexos.map(a => anexoIsImg(a)
         ? `<div class="anx" data-ri="${i}" data-aid="${a.id}" data-img="1" title="${escHtml(a.nome)}"><b>🖼</b><span class="anx-st">…</span></div>`
@@ -2290,8 +2307,19 @@ function renderRedacoes(){
         <button class="edit" data-idx="${i}">Editar</button>
         <button class="del" data-idx="${i}">Excluir</button>
       </div>
+      </div>
     `;
     list.appendChild(div);
+  });
+  list.querySelectorAll('.red-head').forEach(h => {
+    const toggle = () => {
+      const item = h.closest('.red-item'), open = !item.classList.contains('open');
+      item.classList.toggle('open', open);
+      h.setAttribute('aria-expanded', open);
+      if (open) redOpen.add(item.dataset.key); else redOpen.delete(item.dataset.key);
+    };
+    h.addEventListener('click', toggle);
+    h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
   });
   list.querySelectorAll('.red-actions .edit').forEach(b => b.addEventListener('click', e => startEditRed(parseInt(e.target.dataset.idx))));
   list.querySelectorAll('.red-actions .del').forEach(b => b.addEventListener('click', e => deleteRed(parseInt(e.target.dataset.idx))));
