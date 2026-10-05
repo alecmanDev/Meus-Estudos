@@ -181,6 +181,18 @@ try {
   .modal-overlay{display:none; position:fixed; inset:0; background:rgba(5,10,20,.72); z-index:50;
       align-items:flex-end; justify-content:center;}
   .modal-overlay.open{display:flex;}
+  /* comemoração de ciclo concluído */
+  #cycleCelebrate{display:none; position:fixed; inset:0; z-index:70; align-items:center; justify-content:center;
+    background:rgba(5,10,20,.6); padding:24px;}
+  #cycleCelebrate.open{display:flex;}
+  #cycleCelebrate canvas{position:absolute; inset:0; width:100%; height:100%; pointer-events:none;}
+  #cycleCelebrate .cc-card{position:relative; background:var(--panel); border:1px solid var(--line); border-radius:20px;
+    padding:28px 24px 22px; max-width:380px; width:100%; text-align:center; animation:ccPop .45s cubic-bezier(.2,1.4,.4,1);}
+  #cycleCelebrate .cc-emoji{font-size:52px; line-height:1;}
+  #cycleCelebrate h2{font-family:'Sora',sans-serif; font-size:22px; margin:12px 0 6px; color:var(--gold);}
+  #cycleCelebrate p{margin:0 0 18px; color:var(--dim); font-size:14px; line-height:1.5;}
+  @keyframes ccPop{from{transform:scale(.6); opacity:0;} to{transform:scale(1); opacity:1;}}
+  @media (prefers-reduced-motion: reduce){ #cycleCelebrate .cc-card{animation:none;} }
   .modal-card{background:var(--panel); border:1px solid var(--line); border-radius:18px 18px 0 0; width:100%;
       max-width:520px; max-height:80vh; overflow-y:auto; padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px));}
   .modal-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
@@ -987,6 +999,15 @@ try {
 </div>
 
 <div id="concursoWatermark"></div>
+<div id="cycleCelebrate" role="dialog" aria-modal="true" aria-labelledby="ccTitle">
+  <canvas id="ccConfetti"></canvas>
+  <div class="cc-card">
+    <div class="cc-emoji">🎉</div>
+    <h2 id="ccTitle">Ciclo concluído!</h2>
+    <p id="ccMsg"></p>
+    <button class="btn" id="ccOk" style="width:100%;">Começar o próximo ciclo</button>
+  </div>
+</div>
 <div id="toast" class="toast"></div>
 <div class="modal-overlay" id="confirmModal" style="z-index:60;">
   <div class="modal-card" style="border-radius:18px 18px 0 0;">
@@ -1229,16 +1250,60 @@ function todaySubjectHours(){
   return map;
 }
 // Verifica se todas as matérias com meta já bateram a meta; se sim, comemora e começa um novo ciclo.
+// Retorna true quando completou (quem chama salva e redesenha).
 function checkCycleComplete(){
   const comMeta = state.subjects.filter(s => s.goal > 0);
-  if (comMeta.length === 0) return;
-  if (!comMeta.every(s => s.studied >= s.goal - 1e-9)) return;
+  if (comMeta.length === 0) return false;
+  if (!comMeta.every(s => s.studied >= s.goal - 1e-9)) return false;
   const dias = Math.max(0, diffDaysStr(todayStr(), state.cycleStart));
-  toast(`🎉 Ciclo completo em ${dias} dia${dias===1?'':'s'}! Todas as metas foram batidas — começando um novo ciclo.`);
   state.cycleHistory.push({completedAt: todayStr(), days: dias});
   state.subjects.forEach(s => { s.studied = 0; });
   state.cycleStart = todayStr();
+  celebrateCycle(dias, state.cycleHistory.length);
+  return true;
 }
+// Para mudanças que não somam horas (meta alterada, matéria excluída, metas sugeridas, abertura do app):
+// se com isso todas as metas ficaram batidas, conclui o ciclo e atualiza a tela.
+function checkCycleCompleteAndRefresh(){
+  if (!checkCycleComplete()) return false;
+  saveState(); renderRows(); drawDonut(); updateStats(); renderCycleAge();
+  return true;
+}
+function celebrateCycle(dias, total){
+  const box = document.getElementById('cycleCelebrate');
+  if (!box) return;
+  document.getElementById('ccMsg').textContent =
+    `Todas as metas foram batidas em ${dias} dia${dias===1?'':'s'}. Este foi o seu ${total}º ciclo completo — um novo ciclo começa agora, com as horas zeradas.`;
+  box.classList.add('open');
+  playBeep(880); setTimeout(() => playBeep(1175), 160);
+  if (navigator.vibrate) navigator.vibrate([120, 60, 120, 60, 240]);
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduce) runConfetti(document.getElementById('ccConfetti'));
+}
+function runConfetti(cv){
+  const ctx = cv.getContext('2d'), dpr = window.devicePixelRatio || 1;
+  const W = cv.width = Math.round(innerWidth * dpr), H = cv.height = Math.round(innerHeight * dpr);
+  const colors = ['#F2B705','#F7D154','#F2603D','#4CAF7A','#8FB6DE','#FFFFFF'];
+  const parts = Array.from({length: 140}, () => ({
+    x: W/2 + (Math.random()-.5) * W*.2, y: H*.45, r: (4 + Math.random()*5) * dpr,
+    vx: (Math.random()-.5) * 16 * dpr, vy: (-10 - Math.random()*12) * dpr,
+    rot: Math.random()*6, vr: (Math.random()-.5) * .3, c: colors[Math.floor(Math.random()*colors.length)]
+  }));
+  const start = performance.now();
+  (function frame(now){
+    const t = now - start;
+    ctx.clearRect(0, 0, W, H);
+    parts.forEach(p => {
+      p.vy += .35 * dpr; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.globalAlpha = Math.max(0, 1 - t/3200);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.r/2, -p.r/4, p.r, p.r/2);
+      ctx.restore();
+    });
+    if (t < 3200) requestAnimationFrame(frame); else ctx.clearRect(0, 0, W, H);
+  })(start);
+}
+document.getElementById('ccOk').addEventListener('click', () => document.getElementById('cycleCelebrate').classList.remove('open'));
 function renderCicloStats(){
   const totalEl = document.getElementById('statCiclosTotal');
   if (!totalEl) return;
@@ -1361,12 +1426,14 @@ function renderRows(){
       s.goal = Math.max(0, parseFloat(e.target.value)||0);
       saveState(); drawDonut(); updateRowVisual(s); updateMetaGeralField();
     });
+    inp.addEventListener('change', () => checkCycleCompleteAndRefresh());
   });
   rowsEl.querySelectorAll('.del-x').forEach(btn => {
     btn.addEventListener('click', e => {
       const id = e.target.dataset.id;
       state.subjects = state.subjects.filter(x=>x.id!==id);
       saveState(); renderRows(); drawDonut(); updateMetaGeralField(); fillSubjectSelect(); fillDisciplinaSelect(); renderDiscList();
+      checkCycleCompleteAndRefresh();
     });
   });
   rowsEl.querySelectorAll('.reorder-x').forEach(btn => {
@@ -1447,6 +1514,7 @@ document.getElementById('metaGeralInput').addEventListener('input', e => {
   });
   saveState(); drawDonut();
 });
+document.getElementById('metaGeralInput').addEventListener('change', () => checkCycleCompleteAndRefresh());
 
 document.getElementById('addSubjectBtn').addEventListener('click', () => {
   const inp = document.getElementById('newSubject');
@@ -1509,7 +1577,7 @@ function tick(){
       const s = state.subjects.find(x=>x.id===subjId);
       if (s) { addStudiedHours(s, workSec/3600); updateRowVisual(s); }
       state.pomosToday++; state.minutesToday += Math.round(workSec/60);
-      checkCycleComplete();
+      if (checkCycleComplete()) renderCycleAge();
       saveState(); drawDonut(); renderRows(); updateStats();
       if (s) showLogPanel('pomo', s);
       mode='rest'; endAt += restSec*1000;
@@ -1707,6 +1775,7 @@ document.getElementById('suggestHoursBtn').addEventListener('click', () => {
   state.subjects.forEach((s,i) => { s.goal = Math.round(totalHours * finalWeights[i] / totalWeight * 100) / 100; });
   saveState(); drawDonut(); renderRows(); updateMetaGeralField();
   toast('Metas de horas ajustadas com base no peso das disciplinas deste concurso!');
+  checkCycleCompleteAndRefresh();
 });
 function applyActiveConcurso(){
   applyConcursoTheme();
@@ -5171,6 +5240,7 @@ fillGoalInputs(); renderConsistencia();
 fillAgendaConcursoSelect(); renderAgendaAll();
 renderReportBanner();
 renderSyncUI();
+checkCycleCompleteAndRefresh();
 if (state.syncCode && state.syncEnabled){
   if (syncInitFirebase()) syncStart(state.syncCode);
 }
