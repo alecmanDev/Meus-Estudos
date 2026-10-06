@@ -409,7 +409,7 @@ try {
   <div class="view active" id="view-ciclo">
     <section>
       <h2>Concurso ativo</h2>
-      <p class="lead">Escolha qual concurso você está priorizando — isso ajusta o Ranking e a Contagem Regressiva automaticamente.</p>
+      <p class="lead">Escolha qual concurso você está priorizando. Cada concurso tem o seu próprio ciclo de estudos (matérias, metas e horas): ao trocar, o ciclo do anterior fica guardado e você pode voltar a ele quando quiser. Ranking, contagem regressiva e cores também acompanham o concurso.</p>
       <select id="activeConcursoSelect">
         <option value="">Nenhum definido</option>
       </select>
@@ -439,6 +439,7 @@ try {
 
     <section>
       <h2>Ciclo de estudos</h2>
+      <div class="cons-note" id="cycleOwner" style="margin:-4px 0 8px;"></div>
       <p class="lead">Metas por matéria. O ciclo não reseta sozinho — só quando todas as metas forem batidas, ou se você zerar manualmente.</p>
       <div class="meta-geral">
         <label>Meta geral do ciclo</label>
@@ -1168,6 +1169,14 @@ function loadState(rawObj){
     s.pomosToday = 0; s.minutesToday = 0; // contadores só de hoje; o progresso do ciclo NÃO reseta sozinho
   }
   if (!Array.isArray(s.subjects)) s.subjects = defaultSubjects();
+  // ciclos guardados dos concursos que não estão ativos (o ciclo em uso fica em subjects/cycleStart/cycleHistory)
+  if (!s.cycles || typeof s.cycles !== 'object' || Array.isArray(s.cycles)) s.cycles = {};
+  Object.keys(s.cycles).forEach(k => {
+    const cy = s.cycles[k];
+    if (!cy || !Array.isArray(cy.subjects)){ delete s.cycles[k]; return; }
+    if (!cy.cycleStart) cy.cycleStart = s.date;
+    if (!Array.isArray(cy.cycleHistory)) cy.cycleHistory = [];
+  });
   if (!s.cycleStart) s.cycleStart = s.date;
   if (!Array.isArray(s.pomoLog)) s.pomoLog = [];
   if (!Array.isArray(s.cycleHistory)) s.cycleHistory = [];
@@ -1469,6 +1478,7 @@ function updateRowVisual(s){
 }
 
 function renderCycleAge(){
+  renderCycleOwner();
   const el = document.getElementById('cycleAge');
   if (!el) return;
   const dias = Math.max(0, diffDaysStr(todayStr(), state.cycleStart));
@@ -1743,8 +1753,14 @@ function renderCountdown(){
     el.innerHTML = `<div style="font-size:13px; color:var(--dim);">A data informada (${dataFmt}) já passou.</div>`;
   }
 }
+// o que for ajustado aqui também fica gravado no concurso ativo (para não se perder ao trocar de concurso)
+function examToActiveConcurso(){
+  const c = state.concursos.find(x => x.id === state.activeConcursoId);
+  if (c){ c.status = state.exam.status; c.data = state.exam.date; renderConcursoList(); }
+}
 document.getElementById('editalStatus').addEventListener('change', e => {
   state.exam.status = e.target.value;
+  examToActiveConcurso();
   saveState(); renderCountdown();
 });
 document.getElementById('editalData').addEventListener('change', e => {
@@ -1753,6 +1769,7 @@ document.getElementById('editalData').addEventListener('change', e => {
     state.exam.status = 'pos';
     document.getElementById('editalStatus').value = 'pos';
   }
+  examToActiveConcurso();
   saveState(); renderCountdown();
 });
 
@@ -1766,11 +1783,75 @@ function fillActiveConcursoOptions(){
 }
 fillActiveConcursoOptions();
 document.getElementById('activeConcursoSelect').value = state.activeConcursoId || '';
-document.getElementById('activeConcursoSelect').addEventListener('change', e => {
-  state.activeConcursoId = e.target.value || null;
-  saveState();
-  applyActiveConcurso();
-});
+document.getElementById('activeConcursoSelect').addEventListener('change', e => setActiveConcurso(e.target.value || null));
+
+// ---------- CICLO POR CONCURSO ----------
+// O ciclo em uso continua em state.subjects / state.cycleStart / state.cycleHistory (todo o app usa esses campos).
+// Os ciclos dos concursos que não estão ativos ficam guardados em state.cycles[id] ('__none' = sem concurso ativo).
+const CYCLE_NONE = '__none';
+const cycleKey = id => id || CYCLE_NONE;
+const CYCLE_PALETTE = ['#F2B705','#F7D154','#F0A324','#F08A24','#F2603D','#8FB6DE','#4C7FB8','#2F5C93'];
+function newSubjectId(i){ return 's' + Date.now().toString(36) + (i || 0) + Math.random().toString(36).slice(2, 5); }
+function cycleFromDisciplinas(c){
+  const total = totalGoal() > 0 ? totalGoal() : 20;
+  const w = c.disciplinas.map(d => Math.max(0.0001, (d.questoes || 0) * (d.peso || 1)));
+  const W = w.reduce((a, x) => a + x, 0);
+  return {
+    subjects: c.disciplinas.map((d, i) => ({id: newSubjectId(i), label: d.nome, studied: 0,
+      goal: Math.max(0.5, Math.round(total * w[i] / W * 2) / 2), color: CYCLE_PALETTE[i % CYCLE_PALETTE.length]})),
+    cycleStart: todayStr(), cycleHistory: []
+  };
+}
+function cycleCopyCurrent(){
+  return {
+    subjects: state.subjects.map((s, i) => ({id: newSubjectId(i), label: s.label, goal: s.goal, studied: 0, color: s.color})),
+    cycleStart: todayStr(), cycleHistory: []
+  };
+}
+// todas as matérias (do ciclo em uso e dos guardados): para gráficos de horas que juntam todos os concursos
+function allCycleSubjects(){
+  const out = state.subjects.slice(), ids = new Set(out.map(s => s.id));
+  Object.values(state.cycles || {}).forEach(cy => (cy.subjects || []).forEach(s => { if (!ids.has(s.id)){ ids.add(s.id); out.push(s); } }));
+  return out;
+}
+function renderCycleOwner(){
+  const el = document.getElementById('cycleOwner');
+  if (!el) return;
+  const c = state.concursos.find(x => x.id === state.activeConcursoId);
+  el.innerHTML = c ? `Ciclo do concurso: <b style="color:var(--gold-soft)">${escHtml(c.nome)}</b>`
+                   : 'Ciclo geral (nenhum concurso ativo)';
+}
+function setActiveConcurso(newId){
+  newId = newId || null;
+  const sel = document.getElementById('activeConcursoSelect');
+  if (newId === (state.activeConcursoId || null)){ sel.value = newId || ''; return; }
+  if (running){
+    sel.value = state.activeConcursoId || '';
+    toast('Pause o pomodoro antes de trocar de concurso: as horas dele vão para o ciclo em uso.', 'err');
+    return;
+  }
+  const c = state.concursos.find(x => x.id === newId);
+  const finish = fresh => {
+    state.cycles[cycleKey(state.activeConcursoId)] = {subjects: state.subjects, cycleStart: state.cycleStart, cycleHistory: state.cycleHistory};
+    const cy = fresh || state.cycles[cycleKey(newId)];
+    delete state.cycles[cycleKey(newId)];
+    state.activeConcursoId = newId;
+    state.subjects = cy.subjects; state.cycleStart = cy.cycleStart; state.cycleHistory = cy.cycleHistory || [];
+    saveState();
+    refreshAll();
+    applyActiveConcurso();
+    toast(c ? (fresh ? `Novo ciclo criado para ${c.nome}.` : `Ciclo de ${c.nome} carregado.`) : 'Ciclo geral carregado.');
+  };
+  sel.value = state.activeConcursoId || ''; // só muda de fato depois de concluir
+  if (state.cycles[cycleKey(newId)]) return finish(null);
+  if (c && c.disciplinas.length){
+    askConfirm(`${c.nome} ainda não tem um ciclo de estudos. Como você quer começar? (o ciclo atual fica guardado)`,
+      () => finish(cycleFromDisciplinas(c)),
+      {yes: 'Usar as disciplinas do concurso', no: 'Copiar as matérias atuais, zeradas', onNo: () => finish(cycleCopyCurrent())});
+  } else {
+    finish(cycleCopyCurrent());
+  }
+}
 document.getElementById('suggestHoursBtn').addEventListener('click', () => {
   const c = state.concursos.find(x=>x.id===state.activeConcursoId);
   if (!c || c.disciplinas.length===0) return;
@@ -2383,7 +2464,7 @@ function renderPie(){
   const svg = document.getElementById('pie');
   svg.innerHTML = '';
   const todayMap = todaySubjectHours();
-  const studied = state.subjects.filter(s => (todayMap[s.id]||0) > 0).map(s => ({...s, studied: todayMap[s.id]}));
+  const studied = allCycleSubjects().filter(s => (todayMap[s.id]||0) > 0).map(s => ({...s, studied: todayMap[s.id]}));
   const total = studied.reduce((a,s)=>a+s.studied,0);
   const cx=110, cy=110, r=98;
   if (total <= 0){
@@ -2426,7 +2507,7 @@ function renderBarChart(){
   const el = document.getElementById('barChart');
   el.innerHTML = '';
   const todayMap = todaySubjectHours();
-  const studied = state.subjects.filter(s => (todayMap[s.id]||0) > 0).map(s => ({...s, studied: todayMap[s.id]}));
+  const studied = allCycleSubjects().filter(s => (todayMap[s.id]||0) > 0).map(s => ({...s, studied: todayMap[s.id]}));
   const total = studied.reduce((a,s)=>a+s.studied,0);
   if (total <= 0){
     el.innerHTML = '<p class="lead" style="margin:0;">Nada estudado ainda hoje.</p>';
@@ -3241,6 +3322,15 @@ function startEditConcurso(id){
   document.getElementById('concursoFormTitle').scrollIntoView({behavior:'smooth', block:'start'});
 }
 function deleteConcurso(id){
+  delete state.cycles[id];
+  if (state.activeConcursoId === id){
+    // o ciclo em uso era deste concurso: volta para o ciclo geral guardado (ou mantém este como geral, se não houver)
+    const geral = state.cycles[CYCLE_NONE];
+    if (geral){ state.subjects = geral.subjects; state.cycleStart = geral.cycleStart; state.cycleHistory = geral.cycleHistory || []; }
+    delete state.cycles[CYCLE_NONE];
+    state.activeConcursoId = null;
+    refreshAll(); applyConcursoTheme();
+  }
   state.concursos = state.concursos.filter(x=>x.id!==id);
   if (editingConcursoId === id) clearConcursoForm();
   saveState(); renderConcursoList();
@@ -3346,6 +3436,7 @@ function renderConcursoModalBody(c){
       <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
         <label class="color-pick">Cor principal <input type="color" id="ccCor" value="${c.cor || '#F2B705'}"></label>
         <label class="color-pick">Cor do fundo <input type="color" id="ccCor2" value="${c.cor2 || c.cor || '#1A3352'}"></label>
+        ${c.logo ? '<button class="btn ghost small" id="ccCorFromImg" type="button">🎨 Usar cores da imagem</button>' : ''}
         <button class="btn ghost small" id="ccCorReset" type="button">Cores padrão do app</button>
       </div>
       <div style="display:flex; gap:12px; align-items:center; margin-top:12px;">
@@ -3420,6 +3511,16 @@ function renderConcursoModalBody(c){
   const afterLookChange = () => { saveState(); applyConcursoTheme(); renderConcursoList(); };
   document.getElementById('ccCor').addEventListener('input', e => { c.cor = e.target.value; afterLookChange(); });
   document.getElementById('ccCor2').addEventListener('input', e => { c.cor2 = e.target.value; afterLookChange(); });
+  const fromImg = document.getElementById('ccCorFromImg');
+  if (fromImg) fromImg.addEventListener('click', async () => {
+    try {
+      const pal = await paletteFromDataUrl(c.logo);
+      if (!pal){ toast('Não encontrei cores suficientes nessa imagem.', 'err'); return; }
+      c.cor = pal.cor; c.cor2 = pal.cor2;
+      afterLookChange(); renderConcursoModalBody(c);
+      toast('Cores ajustadas a partir da imagem.');
+    } catch(e){ toast('Não foi possível analisar a imagem.', 'err'); }
+  });
   document.getElementById('ccCorReset').addEventListener('click', () => { c.cor = null; c.cor2 = null; afterLookChange(); renderConcursoModalBody(c); });
   document.getElementById('ccLogoBtn').addEventListener('click', () => document.getElementById('ccLogoFile').click());
   document.getElementById('ccLogoFile').addEventListener('change', async e => {
@@ -3428,22 +3529,23 @@ function renderConcursoModalBody(c){
     try {
       const r = await prepareLogo(file, 256);
       c.logo = r.url; c.logoLum = r.lum; c.logoV = 2;
+      if (r.palette){ c.cor = r.palette.cor; c.cor2 = r.palette.cor2; }
       afterLookChange(); renderConcursoModalBody(c);
-      toast('Imagem salva!');
+      toast(r.palette ? 'Imagem salva! As cores do concurso foram ajustadas a partir dela.' : 'Imagem salva!');
     } catch(err){ toast('Não foi possível ler essa imagem.', 'err'); }
   });
   const delLogo = document.getElementById('ccLogoDel');
   if (delLogo) delLogo.addEventListener('click', () => { c.logo = null; afterLookChange(); renderConcursoModalBody(c); });
   const setAct = document.getElementById('ccSetActive');
   if (setAct) setAct.addEventListener('click', () => {
-    state.activeConcursoId = c.id; saveState();
-    document.getElementById('activeConcursoSelect').value = c.id;
-    applyActiveConcurso(); renderConcursoModalBody(c);
-    toast(`${c.nome} agora é o concurso ativo.`);
+    document.getElementById('concursoModal').classList.remove('open');
+    setActiveConcurso(c.id);
   });
   document.getElementById('delCcBtn').addEventListener('click', () => {
-    document.getElementById('concursoModal').classList.remove('open');
-    deleteConcurso(c.id);
+    askConfirm(`Excluir o concurso "${c.nome}"? O ciclo de estudos dele (matérias, metas e horas do ciclo) também será apagado. O histórico de horas, questões e simulados continua salvo.`, () => {
+      document.getElementById('concursoModal').classList.remove('open');
+      deleteConcurso(c.id);
+    }, {yes: 'Excluir'});
   });
   document.getElementById('ccRowAdd').addEventListener('click', () => {
     const nome = document.getElementById('ccRowNome').value.trim();
@@ -4572,9 +4674,14 @@ function computeReportStats(start, end){
   const horasPorId = {};
   // o pomoLog já inclui os registros manuais (ver addStudiedHours)
   state.pomoLog.forEach(e => { if (inRange(e.date)) horasPorId[e.subjectId] = (horasPorId[e.subjectId]||0) + e.hours; });
-  const horasPorDiscList = state.subjects
-    .map(s => ({label:s.label, color:s.color, h: horasPorId[s.id] || 0}))
-    .filter(x => x.h > 0).sort((a,b) => b.h - a.h);
+  // junta por nome as matérias de todos os ciclos (a mesma matéria pode existir em mais de um concurso)
+  const porLabel = {};
+  allCycleSubjects().forEach(s => {
+    const h = horasPorId[s.id] || 0; if (h <= 0) return;
+    if (!porLabel[s.label]) porLabel[s.label] = {label:s.label, color:s.color, h:0};
+    porLabel[s.label].h += h;
+  });
+  const horasPorDiscList = Object.values(porLabel).sort((a,b) => b.h - a.h);
   const qPorDisc = {};
   const addQ = (label, q, a) => { if (!qPorDisc[label]) qPorDisc[label] = {q:0, a:0}; qPorDisc[label].q += q; qPorDisc[label].a += a; };
   state.questoes.forEach(q => { if (inRange(q.date)) addQ(q.disciplina, q.questoes, q.acertos); });
@@ -5101,16 +5208,90 @@ function cleanLogoCanvas(cv){
   out.getContext('2d').drawImage(cv, sx, sy, cw, ch, 0, 0, cw, ch);
   return {canvas: out, lum: n ? sumL/n : null};
 }
+// Analisa as cores da imagem (já sem o fundo liso) e monta a paleta do concurso:
+// cor principal = a cor viva mais presente; cor de fundo = a segunda cor marcante, bem diferente da primeira.
+function rgbToHsl(r, g, b){
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (d === 0) return [0, 0, l];
+  const s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
+  let h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+function extractPalette(cv){
+  const w = cv.width, h = cv.height;
+  if (!w || !h) return null;
+  const d = cv.getContext('2d').getImageData(0, 0, w, h).data;
+  const buckets = new Map();
+  const step = Math.max(1, Math.floor(Math.sqrt(w * h / 40000))); // até ~40 mil amostras
+  for (let y = 0; y < h; y += step) for (let x = 0; x < w; x += step){
+    const i = (y * w + x) * 4;
+    if (d[i + 3] < 160) continue; // ignora transparente / borda suavizada
+    const k = (d[i] >> 4) << 8 | (d[i + 1] >> 4) << 4 | (d[i + 2] >> 4);
+    let bk = buckets.get(k);
+    if (!bk){ bk = {n: 0, r: 0, g: 0, b: 0}; buckets.set(k, bk); }
+    bk.n++; bk.r += d[i]; bk.g += d[i + 1]; bk.b += d[i + 2];
+  }
+  if (!buckets.size) return null;
+  // junta tons quase iguais (baldes vizinhos) para a contagem refletir a cor de verdade
+  const cols = [...buckets.values()].map(bk => ({n: bk.n, rgb: [bk.r / bk.n, bk.g / bk.n, bk.b / bk.n]}))
+    .sort((a, b) => b.n - a.n);
+  const dist = (a, b) => Math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-b[2])**2);
+  const groups = [];
+  cols.forEach(c => {
+    const g = groups.find(g => dist(g.rgb, c.rgb) < 48);
+    if (g){ const t = g.n + c.n; g.rgb = g.rgb.map((v, j) => (v * g.n + c.rgb[j] * c.n) / t); g.n = t; }
+    else groups.push({n: c.n, rgb: c.rgb.slice()});
+  });
+  const total = groups.reduce((a, g) => a + g.n, 0);
+  groups.forEach(g => {
+    const [hh, ss, ll] = rgbToHsl(...g.rgb);
+    g.h = hh; g.s = ss; g.l = ll;
+    const vivid = ss > .25 && ll > .12 && ll < .92;
+    g.score = (g.n / total) * (vivid ? (0.4 + ss) : 0.12);
+  });
+  const sig = groups.filter(g => g.n / total >= 0.02);
+  const pool = sig.length ? sig : groups;
+  const primary = pool.slice().sort((a, b) => b.score - a.score)[0];
+  const hueDiff = (a, b) => { const x = Math.abs(a - b) % 360; return x > 180 ? 360 - x : x; };
+  // a segunda cor também precisa ser viva (branco, preto e cinza não servem de cor da marca)
+  const different = g => g !== primary && g.s > .25 && g.l > .1 && g.l < .9 && dist(g.rgb, primary.rgb) > 90 &&
+    (hueDiff(g.h, primary.h) > 35 || Math.abs(g.l - primary.l) > .3);
+  const second = pool.filter(different).sort((a, b) => b.score - a.score)[0];
+  const cor = rgbToHex(primary.rgb);
+  // sem segunda cor marcante: usa um tom escuro da principal como fundo
+  const cor2 = second ? rgbToHex(second.rgb) : mixHex(cor, '#000000', .55);
+  return {cor, cor2};
+}
+function paletteFromDataUrl(url){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const cv = document.createElement('canvas');
+        cv.width = img.naturalWidth || img.width; cv.height = img.naturalHeight || img.height;
+        cv.getContext('2d').drawImage(img, 0, 0);
+        resolve(extractPalette(cv));
+      } catch(e){ reject(e); }
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
 function logoFromImage(img, max){
   const iw = img.naturalWidth || img.width || max, ih = img.naturalHeight || img.height || max;
   const k = Math.min(1, max / Math.max(iw, ih));
   const w = Math.max(1, Math.round(iw*k)), h = Math.max(1, Math.round(ih*k));
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
   cv.getContext('2d').drawImage(img, 0, 0, w, h);
+  // cores analisadas na imagem original: um fundo colorido (ex.: logo amarelo do BB) também faz parte da marca,
+  // e fundos brancos/pretos pesam pouco por não serem cores vivas
+  let palette = null;
+  try { palette = extractPalette(cv); } catch(e){}
   const r = cleanLogoCanvas(cv);
   let url = r.canvas.toDataURL('image/webp', .9);
   if (!url.startsWith('data:image/webp')) url = r.canvas.toDataURL('image/png');
-  return {url, lum: r.lum};
+  return {url, lum: r.lum, palette};
 }
 function prepareLogo(file, max){
   return new Promise((resolve, reject) => {
