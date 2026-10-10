@@ -1346,6 +1346,7 @@ function renderCicloStats(){
   }).join('');
 }
 function saveState(){
+  errDaysCache = null;
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){}
   if (state.syncCode && !syncApplyingRemote){ syncMarkPending(); scheduleCloudPush(); }
 }
@@ -3922,19 +3923,12 @@ function buildQMap(){
 let consRedMap = {}, consErrMap = {};
 function buildRedMap(){ const m = {}; state.redacoes.forEach(r => { if (r.date) m[r.date] = (m[r.date]||0) + 1; }); return m; }
 function buildErrMap(){ const m = {}; state.errosLog.forEach(l => { if (l.type === 'rev') m[l.date] = (m[l.date]||0) + (l.erros||0); }); return m; }
-// meta da revisão de erros do dia = erros registrados nas questões da semana, antes deste dia
-function errTargetFor(ds){
-  const wk = mondayOf(ds);
-  let t = 0;
-  state.questoes.forEach(q => { if (q.date >= wk && q.date < ds) t += Math.max(0, (q.questoes||0) - (q.acertos||0)); });
-  return t;
-}
 function dayInfo(ds){
   const g = goalFor(ds);
   const h = state.history[ds] || 0;
   const qd = consQmap[ds] || {t:0, a:0};
   const red = consRedMap[ds] || 0;
-  const errDone = consErrMap[ds] || 0;
+  const errDone = errDoneFor(ds);
   const errTarget = g.err ? errTargetFor(ds) : 0;
   const goals = [];
   if (g.h > 0) goals.push(h / g.h);
@@ -4036,7 +4030,7 @@ function bindConsBox(box){
 function renderConsistencia(){
   const box = document.getElementById('consBody');
   if (!box) return;
-  consQmap = buildQMap(); consRedMap = buildRedMap(); consErrMap = buildErrMap();
+  consQmap = buildQMap(); consRedMap = buildRedMap(); consErrMap = buildErrMap(); errDaysCache = null;
   document.querySelectorAll('#consTabs .ctab').forEach(t => t.classList.toggle('active', t.dataset.v === cons.view));
   if (cons.view === 'dia') renderConsDia(box);
   else if (cons.view === 'semana') renderConsSemana(box);
@@ -4252,44 +4246,97 @@ function errKey(assunto, disciplina){ return String(assunto||'').trim().toLowerC
 // Itens abertos do caderno, derivados das questões registradas + do log de revisões.
 // Regras: errar um assunto abre o item; "Revisei" registra a revisão; depois, questões do assunto sem nenhum erro
 // o encerram; errar de novo após a revisão mantém o item (passa para a semana seguinte); "Resolvido" encerra à mão.
-function buildCaderno(){
+function cadernoEvents(){
   const ev = [];
   state.questoes.forEach((q, idx) => ev.push({t:'q', date:q.date || '', ts:(q.ts||0) + idx*1e-3, q}));
   state.errosLog.forEach(l => ev.push({t:l.type, date:l.date || '', ts:l.ts||0, l}));
   ev.sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.ts - b.ts);
-  const items = {};
-  ev.forEach(e => {
-    if (e.t === 'q'){
-      const q = e.q, total = q.questoes||0, erros = Math.max(0, total - (q.acertos||0)), key = errKey(q.assunto, q.disciplina);
-      const it = items[key];
-      if (erros > 0){
-        if (!it || !it.open){
-          items[key] = {key, assunto:q.assunto, disciplina:q.disciplina, open:true, erros, semana:mondayOf(q.date), lastErrDate:q.date, reviewedAt:null, retest:false};
-        } else if (it.reviewedAt){
-          it.erros = erros; it.reviewedAt = null; it.retest = true; it.lastErrDate = q.date;
-        } else { it.erros += erros; it.lastErrDate = q.date; }
-      } else if (it && it.open && it.reviewedAt && total > 0 && q.date >= it.reviewedAt){
-        it.open = false;
-      }
-    } else if (e.t === 'rev'){
-      const it = items[e.l.key]; if (it && it.open) it.reviewedAt = e.date;
-    } else if (e.t === 'undo'){
-      const it = items[e.l.key]; if (it && it.open && it.reviewedAt === e.l.date) it.reviewedAt = null;
-    } else if (e.t === 'zerar'){
-      const it = items[e.l.key]; if (it) it.open = false;
+  return ev;
+}
+function cadernoApply(items, e){
+  if (e.t === 'q'){
+    const q = e.q, total = q.questoes||0, erros = Math.max(0, total - (q.acertos||0)), key = errKey(q.assunto, q.disciplina);
+    const it = items[key];
+    if (erros > 0){
+      if (!it || !it.open){
+        items[key] = {key, assunto:q.assunto, disciplina:q.disciplina, open:true, erros, semana:mondayOf(q.date), lastErrDate:q.date, reviewedAt:null, retest:false};
+      } else if (it.reviewedAt){
+        it.erros = erros; it.reviewedAt = null; it.retest = true; it.lastErrDate = q.date;
+      } else { it.erros += erros; it.lastErrDate = q.date; }
+    } else if (it && it.open && it.reviewedAt && total > 0 && q.date >= it.reviewedAt){
+      it.open = false;
     }
-  });
+  } else if (e.t === 'rev'){
+    const it = items[e.l.key]; if (it && it.open) it.reviewedAt = e.date;
+  } else if (e.t === 'undo'){
+    const it = items[e.l.key]; if (it && it.open && it.reviewedAt === e.l.date) it.reviewedAt = null;
+  } else if (e.t === 'zerar'){
+    const it = items[e.l.key]; if (it) it.open = false;
+  }
+}
+// "pendente" = em aberto e ainda não revisado: é o que a lista manda revisar e o que entra na meta
+const cadernoPending = it => it.open && !it.reviewedAt;
+function buildCaderno(){
+  const items = {};
+  cadernoEvents().forEach(e => cadernoApply(items, e));
   return Object.values(items).filter(i => i.open);
 }
-let cadernoItems = [];
+// Meta e progresso da revisão de erros por dia, calculados com as MESMAS regras da lista do caderno:
+// - meta do dia = erros dos assuntos que estavam pendentes no começo do dia (o que a lista mostrava ao abrir o dia);
+// - feitos no dia = desses assuntos, os que foram revisados ou resolvidos naquele dia.
+// Erros registrados no próprio dia entram na meta da próxima revisão.
+var errDaysCache = null;
+function buildErrDays(){
+  const items = {}, ev = cadernoEvents();
+  const dates = [], pendAfter = [], done = {}, startPending = {};
+  const pendingSnap = () => { const m = {}; Object.values(items).forEach(it => { if (cadernoPending(it)) m[it.key] = it.erros; }); return m; };
+  for (let i = 0; i < ev.length; ){
+    const d = ev[i].date;
+    const before = pendingSnap();
+    startPending[d] = before;
+    const touched = new Set();
+    for (; i < ev.length && ev[i].date === d; i++){
+      const e = ev[i];
+      if ((e.t === 'rev' || e.t === 'zerar') && e.l && before[e.l.key] !== undefined) touched.add(e.l.key);
+      cadernoApply(items, e);
+    }
+    let n = 0;
+    Object.keys(before).forEach(k => {
+      const it = items[k];
+      if (touched.has(k) || !it || !cadernoPending(it)) n += before[k];
+    });
+    if (n > 0) done[d] = n;
+    dates.push(d);
+    pendAfter.push(Object.values(pendingSnap()).reduce((a, x) => a + x, 0));
+  }
+  return {dates, pendAfter, done, startPending, finalPending: pendingSnap()};
+}
+function errDays(){ return errDaysCache || (errDaysCache = buildErrDays()); }
+function errTargetFor(ds){
+  const c = errDays();
+  let lo = 0, hi = c.dates.length - 1, idx = -1;
+  while (lo <= hi){ const mid = (lo + hi) >> 1; if (c.dates[mid] < ds){ idx = mid; lo = mid + 1; } else hi = mid - 1; }
+  return idx >= 0 ? c.pendAfter[idx] : 0;
+}
+function errDoneFor(ds){ return errDays().done[ds] || 0; }
+// assuntos que estavam pendentes no começo do dia (os que contam na meta de hoje)
+function errStartPendingKeys(ds){
+  const c = errDays();
+  if (c.startPending[ds]) return new Set(Object.keys(c.startPending[ds]));
+  // dia sem nenhum evento ainda: o começo do dia é o estado final
+  return new Set(c.dates.length && c.dates[c.dates.length - 1] < ds ? Object.keys(c.finalPending) : []);
+}
+let cadernoItems = [], cadernoStartKeys = new Set();
 function cadernoSlotHtml(it, idx, wk, today){
   const old = it.semana < wk;
   let badge;
   if (it.reviewedAt) badge = {cls:'soon', label:'Aguardando reteste'};
+  else if (!cadernoStartKeys.has(it.key)) badge = {cls:'soon', label:'Novo hoje'};
   else if (old) badge = {cls:'late', label:'Semana anterior'};
   else badge = {cls:'today', label:'Revisar'};
   const meta = `${escHtml(it.disciplina)} · ${it.erros} erro${it.erros>1?'s':''} · semana de ${fmtDM(it.semana)}${it.retest ? ' · errou de novo no reteste' : ''}`;
-  const note = it.reviewedAt ? `<div class="rev-meta">Revisado em ${fmtDM(it.reviewedAt)} — refaça questões desse assunto; se vierem sem erros, ele sai daqui.</div>` : '';
+  const note = it.reviewedAt ? `<div class="rev-meta">Revisado em ${fmtDM(it.reviewedAt)} — refaça questões desse assunto; se vierem sem erros, ele sai daqui.</div>`
+    : (!cadernoStartKeys.has(it.key) ? '<div class="rev-meta">Registrado hoje: entra na meta da próxima revisão (você já pode revisar, se quiser).</div>' : '');
   const act = it.reviewedAt
     ? (it.reviewedAt === today ? `<button class="btn ghost small errUndo" data-i="${idx}">Desfazer revisão</button>` : '')
     : `<button class="btn small errRev" data-i="${idx}">Revisei</button>`;
@@ -4306,8 +4353,10 @@ function renderCaderno(){
   let weekErr = 0, revWeek = 0;
   state.questoes.forEach(q => { if (q.date >= wk && q.date <= wkEnd) weekErr += Math.max(0, (q.questoes||0) - (q.acertos||0)); });
   state.errosLog.forEach(l => { if (l.type === 'rev' && l.date >= wk && l.date <= wkEnd) revWeek += l.erros||0; });
+  errDaysCache = null;
   const g = goalFor(today);
-  const metaHoje = g.err ? (() => { const t = errTargetFor(today); return t > 0 ? ` · <b>meta de hoje:</b> revisar ${t} (feitos ${consErrMapSafe(today)})` : ''; })() : '';
+  const metaHoje = g.err ? (() => { const t = errTargetFor(today); return t > 0 ? ` · <b>meta de hoje:</b> revisar ${t} erro${t>1?'s':''} (feitos ${Math.min(t, errDoneFor(today))})` : ''; })() : '';
+  cadernoStartKeys = errStartPendingKeys(today);
   document.getElementById('cadernoResumo').innerHTML =
     `<span>Erros registrados nesta semana: <b>${weekErr}</b></span><span>Revisados: <b>${revWeek}</b></span>${metaHoje ? `<span>${metaHoje.replace(/^ · /,'')}</span>` : ''}`;
   const cur = cadernoItems.filter(i => i.semana >= wk), old = cadernoItems.filter(i => i.semana < wk);
@@ -4324,7 +4373,6 @@ function renderCaderno(){
     return `<div class="q-meta" style="margin-bottom:6px;"><b style="color:var(--text)">${fmtLongDate(ds)}</b> — ${tot} erro${tot>1?'s':''} revisado${tot>1?'s':''}: ${arr.map(l => escHtml(l.assunto)+' ('+(l.erros||0)+')').join(', ')}</div>`;
   }).join('') : '<p class="lead" style="margin:0;">Nenhuma revisão registrada ainda.</p>';
 }
-function consErrMapSafe(ds){ return buildErrMap()[ds] || 0; }
 function logCaderno(type, it, extra){
   state.errosLog.push(Object.assign({id:'e'+Date.now()+Math.floor(Math.random()*1000), type, date:todayStr(), key:it.key,
     assunto:it.assunto, disciplina:it.disciplina, erros:it.erros, ts:Date.now()}, extra||{}));
@@ -4696,7 +4744,8 @@ function computeReportStats(start, end){
   const ciclosPeriodo = state.cycleHistory.filter(c => inRange(c.completedAt));
   const ranking = qPorDiscList.filter(x=>x.q>0).slice().sort((a,b) => a.pct-b.pct).slice(0,3);
   const revsPeriodo = state.revisoes.filter(r => inRange(r.date)).length;
-  const pendAtuais = state.revisoes.filter(r => revNextPending(r)).length;
+  // mesma regra da lista "Revisar hoje" e do aviso: só as que vencem até hoje (as futuras não estão pendentes)
+  const pendAtuais = state.revisoes.filter(r => { const n = revNextPending(r); return n && n.due <= todayStr(); }).length;
   return {totalHoras, metaHoras, totalQ, totalA, horasPorDiscList, qPorDiscList, simsStats, ciclosPeriodo, ranking, revsPeriodo, pendAtuais};
 }
 function reportHtml(stats, label){
