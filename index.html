@@ -108,6 +108,19 @@ try {
   .pomo-mode{font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); font-weight:700;}
   .pomo-controls{display:flex; gap:10px; justify-content:center; margin:16px 0 6px;}
   .pomo-controls button{padding:12px 20px; border-radius:12px; font-size:15px;}
+  .pomo-controls{flex-wrap:wrap;}
+  .timer-mode{display:flex; flex-direction:column; gap:6px; text-align:left; margin-bottom:10px;}
+  .timer-mode label{font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.04em;}
+  .pomo-ring.crono .pr-prog{stroke:#8FB6DE;}
+  .pomo-ring.crono .pomo-timer{color:#8FB6DE;}
+  .pomo-ring.crono.running .pr-prog{filter:drop-shadow(0 0 6px #8FB6DE);}
+  .crono-laps{margin:12px auto 4px; max-width:420px; text-align:left;}
+  .crono-laps .lap{display:flex; justify-content:space-between; gap:10px; padding:7px 10px; border-bottom:1px solid var(--line);
+    font-size:13px; font-variant-numeric:tabular-nums;}
+  .crono-laps .lap b{color:var(--text);}
+  .crono-laps .lap span{color:var(--dim);}
+  .crono-hint{font-size:12px; color:var(--dim); margin-top:6px;}
+  @media (max-width: 480px){ .pomo-controls{gap:8px;} .pomo-controls button{padding:11px 13px; font-size:14px;} }
   select{width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:9px; color:var(--text);
      padding:11px 10px; font-size:14px; margin-bottom:14px;}
   .settings-row{display:flex; gap:10px; margin-top:14px;}
@@ -395,7 +408,7 @@ try {
 <div class="wrap">
   <div class="tabs">
     <div class="tab active" data-view="ciclo">Ciclo</div>
-    <div class="tab" data-view="pomo">Pomodoro</div>
+    <div class="tab" data-view="pomo">Tempo de estudo</div>
     <div class="tab" data-view="resumo">Resumo do Dia</div>
     <div class="tab" data-view="historico">Histórico</div>
     <div class="tab" data-view="simulados">Simulados</div>
@@ -635,9 +648,21 @@ try {
 
   <div class="view" id="view-pomo">
     <section class="pomo-card">
-      <h2>Pomodoro</h2>
-      <p class="lead">Escolha a matéria e estude com foco — o tempo entra direto no ciclo.</p>
-      <select id="subjectSelect"></select>
+      <h2>Tempo de estudo</h2>
+      <p class="lead">Escolha a matéria e o jeito de contar o tempo — tudo entra direto no ciclo.</p>
+      <div class="timer-mode">
+        <label for="timerMode">Modo</label>
+        <select id="timerMode">
+          <option value="short">Pomodoro curto — 25 min de foco / 5 min de pausa</option>
+          <option value="long">Pomodoro longo — 50 min de foco / 10 min de pausa</option>
+          <option value="custom">Pomodoro personalizado</option>
+          <option value="crono">Cronômetro livre</option>
+        </select>
+      </div>
+      <div class="timer-mode">
+        <label for="subjectSelect">Matéria</label>
+        <select id="subjectSelect"></select>
+      </div>
       <div class="pomo-ring" id="pomoRing">
         <svg viewBox="0 0 220 220" aria-hidden="true">
           <circle class="pr-track" cx="110" cy="110" r="100"></circle>
@@ -652,15 +677,18 @@ try {
       <div class="pomo-controls">
         <button class="btn" id="startBtn">Iniciar</button>
         <button class="btn ghost" id="pauseBtn">Pausar</button>
+        <button class="btn ghost" id="lapBtn" style="display:none;">Marcar</button>
         <button class="btn ghost" id="resetBtn">Reiniciar</button>
       </div>
-      <div class="settings-row">
+      <div class="crono-hint" id="cronoHint" style="display:none;">O tempo do cronômetro é salvo na matéria quando você toca em <b>Reiniciar</b>.</div>
+      <div class="crono-laps" id="cronoLaps" style="display:none;"></div>
+      <div class="settings-row" id="customTimes">
         <div class="field"><label>Foco (min)</label><input type="number" id="workMin" value="25" min="5"></div>
         <div class="field"><label>Pausa (min)</label><input type="number" id="restMin" value="5" min="1"></div>
       </div>
       <div class="stat-row">
         <div class="stat"><div class="n" id="statPomos">0</div><div class="c">Pomodoros hoje</div></div>
-        <div class="stat"><div class="n" id="statMinutes">0min</div><div class="c">Foco hoje</div></div>
+        <div class="stat"><div class="n" id="statMinutes">0min</div><div class="c">Tempo de foco hoje</div></div>
       </div>
       <div id="pomoLogPanel" style="display:none; margin-top:18px; padding-top:16px; border-top:1px solid var(--line); text-align:left;">
         <div style="font-weight:700; font-size:13.5px; margin-bottom:2px;">Sessão concluída! Registrar o assunto? (opcional)</div>
@@ -1585,7 +1613,59 @@ function notifyModeChange(newMode){
   if (navigator.vibrate) navigator.vibrate(newMode === 'rest' ? [150,80,150] : [250]);
 }
 
+// ---------- MODOS DO TEMPO DE ESTUDO ----------
+// short/long/custom = pomodoro (foco + pausa); crono = cronômetro livre que conta para cima.
+const TIMER_PRESETS = {short: {work: 25, rest: 5}, long: {work: 50, rest: 10}};
+const TIMER_KEY = 'estudo_timer'; // preferências e timer em andamento ficam só neste aparelho
+let timerMode = 'short', customWork = 25, customRest = 5;
+let cronoAcc = 0, cronoStart = null, cronoLaps = [], cronoSubjectId = null; // ms acumulados / início da contagem atual
+function cronoElapsed(){ return cronoAcc + (cronoStart !== null ? Date.now() - cronoStart : 0); }
+function cronoHasTime(){ return timerMode === 'crono' && cronoElapsed() >= 1000; }
+function fmtClock(sec){
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), ss = sec % 60;
+  const p2 = n => String(n).padStart(2, '0');
+  return h > 0 ? `${h}:${p2(m)}:${p2(ss)}` : `${p2(m)}:${p2(ss)}`;
+}
+function saveTimer(){
+  try {
+    localStorage.setItem(TIMER_KEY, JSON.stringify({timerMode, customWork, customRest, running, mode, remaining, endAt,
+      cronoAcc, cronoStart, cronoLaps, cronoSubjectId, subjectId: document.getElementById('subjectSelect').value}));
+  } catch(e){}
+}
+function applyTimerDurations(){
+  const p = TIMER_PRESETS[timerMode] || {work: customWork, rest: customRest};
+  workSec = p.work * 60; restSec = p.rest * 60;
+}
+function renderTimerMode(){
+  const crono = timerMode === 'crono';
+  document.getElementById('timerMode').value = timerMode;
+  document.getElementById('customTimes').style.display = timerMode === 'custom' ? '' : 'none';
+  document.getElementById('lapBtn').style.display = crono ? '' : 'none';
+  document.getElementById('cronoHint').style.display = crono ? '' : 'none';
+  document.getElementById('cronoLaps').style.display = crono && cronoLaps.length ? '' : 'none';
+  document.getElementById('workMin').value = customWork;
+  document.getElementById('restMin').value = customRest;
+  document.getElementById('pomoMode').textContent = crono ? 'CRONÔMETRO' : (mode === 'work' ? 'FOCO' : 'PAUSA');
+  // com tempo não salvo no cronômetro, a matéria fica travada (o tempo vai para a matéria em que começou)
+  document.getElementById('subjectSelect').disabled = crono && (running || cronoHasTime());
+  renderLaps();
+  renderTime();
+}
+document.getElementById('timerMode').addEventListener('change', e => {
+  const next = e.target.value;
+  if (running || cronoHasTime()){
+    e.target.value = timerMode;
+    toast(running ? 'Pause o tempo antes de trocar de modo.' : 'Toque em Reiniciar para salvar (ou descartar) o tempo do cronômetro antes de trocar de modo.', 'err');
+    return;
+  }
+  timerMode = next;
+  applyTimerDurations();
+  mode = 'work'; remaining = workSec; endAt = null;
+  saveTimer(); renderTimerMode();
+});
+
 function tick(){
+  if (timerMode === 'crono'){ renderTime(); return; }
   if (!running || endAt === null){ renderTime(); return; }
   remaining = Math.max(0, Math.ceil((endAt - Date.now())/1000));
   let switched = false;
@@ -1610,55 +1690,163 @@ function tick(){
   if (switched){
     notifyModeChange(mode);
     document.getElementById('pomoMode').textContent = mode==='work' ? 'FOCO' : 'PAUSA';
+    saveTimer();
   }
   renderTime();
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && running) tick(); });
 function renderTime(){
-  const m = Math.floor(remaining/60), s = remaining%60;
-  const txt = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  const crono = timerMode === 'crono';
+  let txt, frac;
+  if (crono){
+    const sec = Math.floor(cronoElapsed() / 1000);
+    txt = fmtClock(sec);
+    frac = (sec % 3600) / 3600; // o anel dá uma volta por hora
+  } else {
+    txt = fmtClock(remaining);
+    const total = mode === 'work' ? workSec : restSec;
+    frac = total > 0 ? Math.min(1, Math.max(0, 1 - remaining/total)) : 0;
+  }
   document.getElementById('pomoTime').textContent = txt;
-  const total = mode === 'work' ? workSec : restSec;
-  const frac = total > 0 ? Math.min(1, Math.max(0, 1 - remaining/total)) : 0;
   const prog = document.getElementById('pomoProg');
   if (prog) prog.style.strokeDashoffset = (628.32 * (1 - frac)).toFixed(2);
   const ring = document.getElementById('pomoRing');
-  if (ring){ ring.classList.toggle('rest', mode !== 'work'); ring.classList.toggle('running', !!running); }
+  if (ring){
+    ring.classList.toggle('crono', crono);
+    ring.classList.toggle('rest', !crono && mode !== 'work');
+    ring.classList.toggle('running', !!running);
+  }
   const sub = document.getElementById('pomoSub');
   if (sub){
     const sel = document.getElementById('subjectSelect');
     const subj = state.subjects.find(x => x.id === (sel && sel.value));
-    sub.textContent = mode === 'work' ? (subj ? subj.label : '') : 'Respire e descanse';
+    sub.textContent = (crono || mode === 'work') ? (subj ? subj.label : '') : 'Respire e descanse';
   }
-  document.title = running ? `${txt} · ${mode === 'work' ? 'Foco' : 'Pausa'} — Meu Estudo` : 'Meu Estudo — Concurso';
+  const label = crono ? 'Cronômetro' : (mode === 'work' ? 'Foco' : 'Pausa');
+  document.title = running ? `${txt} · ${label} — Meu Estudo` : 'Meu Estudo — Concurso';
 }
-document.getElementById('startBtn').addEventListener('click', () => {
+function renderLaps(){
+  const el = document.getElementById('cronoLaps');
+  if (!el) return;
+  el.style.display = timerMode === 'crono' && cronoLaps.length ? '' : 'none';
+  el.innerHTML = cronoLaps.map((l, i) => {
+    const prev = i > 0 ? cronoLaps[i-1].t : 0;
+    const hora = new Date(l.at).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    return `<div class="lap"><b>Marca ${i+1}</b><span>+${fmtClock(Math.floor((l.t - prev)/1000))}</span><b>${fmtClock(Math.floor(l.t/1000))}</b><span>às ${hora}</span></div>`;
+  }).reverse().join('');
+}
+function startTimer(){
   if (running) return;
   running = true;
-  endAt = Date.now() + remaining*1000;
+  if (timerMode === 'crono'){
+    cronoStart = Date.now();
+    if (!cronoSubjectId) cronoSubjectId = document.getElementById('subjectSelect').value;
+  } else {
+    endAt = Date.now() + remaining*1000;
+  }
+  clearInterval(timerId);
   timerId = setInterval(tick, 1000);
-  renderTime();
-});
-document.getElementById('subjectSelect').addEventListener('change', () => renderTime());
+  saveTimer(); renderTimerMode();
+}
+document.getElementById('startBtn').addEventListener('click', startTimer);
+document.getElementById('subjectSelect').addEventListener('change', () => { saveTimer(); renderTime(); });
 document.getElementById('pauseBtn').addEventListener('click', () => {
-  if (running) tick();
+  if (timerMode === 'crono'){
+    if (cronoStart !== null){ cronoAcc += Date.now() - cronoStart; cronoStart = null; }
+  } else if (running) tick();
   running = false; clearInterval(timerId); endAt = null;
-  renderTime();
+  saveTimer(); renderTimerMode();
 });
+document.getElementById('lapBtn').addEventListener('click', () => {
+  const t = cronoElapsed();
+  if (t < 1000){ toast('Inicie o cronômetro para marcar o tempo.', 'err'); return; }
+  cronoLaps.push({t, at: Date.now()});
+  saveTimer(); renderLaps();
+  toast(`Marca ${cronoLaps.length}: ${fmtClock(Math.floor(t/1000))}`);
+});
+function clearCrono(){
+  running = false; clearInterval(timerId);
+  cronoAcc = 0; cronoStart = null; cronoLaps = []; cronoSubjectId = null;
+  saveTimer(); renderTimerMode();
+}
+// salva o tempo do cronômetro na matéria em que ele começou (como um registro de tempo, que dá para excluir)
+function saveCronoTime(){
+  const minutes = Math.round(cronoElapsed() / 60000);
+  const s = state.subjects.find(x => x.id === (cronoSubjectId || document.getElementById('subjectSelect').value));
+  if (!s || minutes < 1){ clearCrono(); return; }
+  checkDayRollover();
+  addStudiedHours(s, minutes/60);
+  state.manualLog.push({id:'m'+Date.now(), date:todayStr(), subjectId:s.id, minutes, src:'crono'});
+  state.minutesToday += minutes;
+  checkCycleComplete();
+  clearCrono();
+  afterStudyChange(); renderManualLog(); updateStats();
+  showLogPanel('pomo', s);
+  toast(`+${fmtMin(minutes)} em ${s.label}`);
+}
 document.getElementById('resetBtn').addEventListener('click', () => {
+  if (timerMode === 'crono'){
+    if (cronoStart !== null){ cronoAcc += Date.now() - cronoStart; cronoStart = null; }
+    running = false; clearInterval(timerId);
+    const sec = Math.floor(cronoElapsed() / 1000);
+    if (sec < 60){
+      if (sec > 0) toast('Menos de 1 minuto: nada foi salvo.');
+      clearCrono(); return;
+    }
+    renderTimerMode(); saveTimer();
+    const s = state.subjects.find(x => x.id === (cronoSubjectId || document.getElementById('subjectSelect').value));
+    askConfirm(`Salvar ${fmtMin(Math.round(sec/60))} de estudo em ${s ? s.label : 'esta matéria'} antes de zerar o cronômetro?`,
+      saveCronoTime, {yes: 'Salvar e zerar', no: 'Zerar sem salvar', onNo: clearCrono});
+    return;
+  }
   running = false; clearInterval(timerId); endAt = null;
   mode='work'; remaining=workSec;
   document.getElementById('pomoMode').textContent='FOCO';
-  renderTime();
+  saveTimer(); renderTime();
 });
 document.getElementById('workMin').addEventListener('change', e => {
-  workSec = Math.max(1, parseInt(e.target.value)||25) * 60;
+  customWork = Math.max(1, parseInt(e.target.value)||25);
+  applyTimerDurations();
   if (mode==='work' && !running) { remaining = workSec; renderTime(); }
+  saveTimer();
 });
 document.getElementById('restMin').addEventListener('change', e => {
-  restSec = Math.max(1, parseInt(e.target.value)||5) * 60;
+  customRest = Math.max(1, parseInt(e.target.value)||5);
+  applyTimerDurations();
   if (mode==='rest' && !running) { remaining = restSec; renderTime(); }
+  saveTimer();
 });
+// Retoma o modo e o timer em andamento depois de fechar/recarregar o app (chamado no INIT).
+function restoreTimer(){
+  let t = null;
+  try { t = JSON.parse(localStorage.getItem(TIMER_KEY) || 'null'); } catch(e){}
+  if (t && typeof t === 'object'){
+    if (['short','long','custom','crono'].includes(t.timerMode)) timerMode = t.timerMode;
+    customWork = Math.max(1, parseInt(t.customWork) || 25);
+    customRest = Math.max(1, parseInt(t.customRest) || 5);
+    applyTimerDurations();
+    const sel = document.getElementById('subjectSelect');
+    if (t.subjectId && state.subjects.find(x => x.id === t.subjectId)) sel.value = t.subjectId;
+    if (timerMode === 'crono'){
+      cronoAcc = Number(t.cronoAcc) || 0;
+      cronoStart = typeof t.cronoStart === 'number' ? t.cronoStart : null;
+      cronoLaps = Array.isArray(t.cronoLaps) ? t.cronoLaps.filter(l => l && typeof l.t === 'number') : [];
+      cronoSubjectId = state.subjects.find(x => x.id === t.cronoSubjectId) ? t.cronoSubjectId : null;
+      if (cronoStart !== null){ running = true; timerId = setInterval(tick, 1000); }
+    } else {
+      mode = t.mode === 'rest' ? 'rest' : 'work';
+      remaining = Math.max(0, parseInt(t.remaining) || (mode === 'work' ? workSec : restSec));
+      if (t.running && typeof t.endAt === 'number'){
+        running = true; endAt = t.endAt;
+        timerId = setInterval(tick, 1000);
+        tick(); // credita as fases que terminaram com o app fechado
+      }
+    }
+  } else {
+    applyTimerDurations(); remaining = workSec;
+  }
+  renderTimerMode();
+}
 function updateStats(){
   document.getElementById('statPomos').textContent = state.pomosToday;
   document.getElementById('statMinutes').textContent = state.minutesToday + 'min';
@@ -1826,9 +2014,10 @@ function setActiveConcurso(newId){
   newId = newId || null;
   const sel = document.getElementById('activeConcursoSelect');
   if (newId === (state.activeConcursoId || null)){ sel.value = newId || ''; return; }
-  if (running){
+  if (running || cronoHasTime()){
     sel.value = state.activeConcursoId || '';
-    toast('Pause o pomodoro antes de trocar de concurso: as horas dele vão para o ciclo em uso.', 'err');
+    toast(running ? 'Pause o tempo de estudo antes de trocar de concurso: as horas dele vão para o ciclo em uso.'
+                  : 'Salve o tempo do cronômetro (Reiniciar) antes de trocar de concurso.', 'err');
     return;
   }
   const c = state.concursos.find(x => x.id === newId);
@@ -5445,14 +5634,14 @@ function renderManualLog(){
   if (!el) return;
   const today = todayStr();
   const items = state.manualLog.filter(m => m.date === today);
-  if (!items.length){ el.innerHTML = '<p class="lead" style="margin:0;">Nenhum registro manual hoje.</p>'; return; }
+  if (!items.length){ el.innerHTML = '<p class="lead" style="margin:0;">Nenhum registro manual ou de cronômetro hoje.</p>'; return; }
   const total = items.reduce((a,m)=>a+m.minutes,0);
   el.innerHTML = items.map(m => {
     const s = state.subjects.find(x => x.id === m.subjectId);
     return `<div class="disc-item" style="cursor:default;">
-      <div class="disc-name">${s ? escHtml(s.label) : 'Matéria removida'}</div>
+      <div class="disc-name">${m.src === 'crono' ? '⏱ ' : ''}${s ? escHtml(s.label) : 'Matéria removida'}</div>
       <div class="disc-nums">${fmtMin(m.minutes)} <button class="del-btn manDel" data-id="${m.id}">✕</button></div></div>`;
-  }).join('') + `<div class="q-meta" style="text-align:right;">Total manual hoje: <b>${fmtMin(total)}</b></div>`;
+  }).join('') + `<div class="q-meta" style="text-align:right;">Total manual e cronômetro hoje: <b>${fmtMin(total)}</b></div>`;
   el.querySelectorAll('.manDel').forEach(b => b.addEventListener('click', e => {
     const m = state.manualLog.find(x => x.id === e.target.dataset.id);
     if (!m) return;
@@ -5492,6 +5681,7 @@ renderDisciplinaRanking();
 renderRevisoes(); renderCaderno();
 anexosLimpezaLocal();
 fillManSubject(); renderManualLog();
+restoreTimer();
 renderBackupInfo(); renderBackupBanner(); renderInstallInfo();
 fillFonteSelects(); renderFontesList();
 fillGoalInputs(); renderConsistencia();
